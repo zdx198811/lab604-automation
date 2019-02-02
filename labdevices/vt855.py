@@ -20,7 +20,7 @@ import mmap
 from vt_comm import commandset_pack
 from os import name as os_name
 
-_MMAP_FILE = 'mmap_file.bin'
+_MMAP_FILE = '/tmp/mmap_file.bin'
 
 
 CommandSet = {
