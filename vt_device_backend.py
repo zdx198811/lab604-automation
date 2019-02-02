@@ -12,7 +12,7 @@ Discription:
 __version__ = '0.0.1'
 from socketserver import BaseRequestHandler
 import vt_comm
-import vt855 as vtXXX                      # modify this line for each device
+import labdevices.vt855 as vtXXX                      # modify this line for each device
 
 
 HOST, PORT = "172.24.145.55", 9998         # modify this line for each device
