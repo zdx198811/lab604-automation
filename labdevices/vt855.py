@@ -20,11 +20,11 @@ import mmap
 from vt_comm import commandset_pack
 from os import name as os_name
 
-_MMAP_FILE = 'mmap_file.bin'
+_MMAP_FILE = '/tmp/mmap_file.bin'
 
 
 CommandSet = {
-        'query'    :{'helloworld'       : 'return hello world back. Just for testing connectivity'},
+        'query'    :{'hello'            : 'return hello back. Just for testing connectivity'},
                      
         'config'   :{'CloseConnection'  : 'Finish this session. Tell the backend to finish TCP session.',
                      'UpdateRate R'     : 'change sample update rate. R=1,2,3, corresponding to 1s, 0.5s, 0.1s.'},
@@ -40,7 +40,7 @@ def handle(command, VT_Handler):
     print(command)
     if (command == 'ComSet'): # When establishing connection, the client side will query 'CommSet' for once. 
         result = sock.sendall(commandset_pack(CommandSet))
-    elif (command == 'helloworld'):
+    elif (command == 'hello'):
         result = sock.sendall(bytes(helloworld(),'utf-8'))
     elif (command == 'CloseConnection'):
         result = -1
@@ -62,7 +62,7 @@ def handle(command, VT_Handler):
 
 
 def helloworld():
-    return 'hello, world!'
+    return 'hello, this is VT855!'
 
 
 def handle_getdata(sock, f, data_len):
