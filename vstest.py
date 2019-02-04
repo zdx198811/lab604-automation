@@ -20,3 +20,6 @@ tf.test.is_built_with_cuda()
 
 #%%
 print('hi, there')
+
+#%%
+print('test home pc')
