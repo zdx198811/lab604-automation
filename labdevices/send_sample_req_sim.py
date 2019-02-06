@@ -12,13 +12,16 @@ Description:
 import mmap
 from os import listdir
 import numpy as np
+from locale import atoi
+import csv as csvlib
+from bitstring import BitArray
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-_sample_csv_path = './0510'
+_sample_csv_path = '/home/dongxu/Documents/0510'
 _all_samples = []
 _all_samples_bin = []
-_f = open('mmap_file.bin', 'rb+')
+_f = open('/home/dongxu/Documents/mmap_file.bin', 'rb+')
 _m = mmap.mmap(_f.fileno(), 48000,  access=mmap.ACCESS_WRITE)
 
 _fig_nrows = 1

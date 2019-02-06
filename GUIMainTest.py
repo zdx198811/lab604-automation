@@ -17,7 +17,8 @@ import dmt_lib as dmt
 from bitstring import BitArray
 
 
-ServerAddr = "172.24.145.67", 9998
+#ServerAddr = "172.24.145.67", 9998
+ServerAddr = "192.168.1.4", 9998
 equ_repeat_period = 1
 SUB_START = 20
 SUB_STOP = 35
@@ -38,7 +39,7 @@ class mydevice(vt_device.VT_Device):
 '''
 vt855.open_device()
 vt855.print_commandset()
-vt855.query('helloworld')
+vt855.query('hello')
 vt855.query('helloworld11')
 response1 = vt855.query_bin('getdata 24000')
 response2 = vt855.query_bin('getdata 48000')

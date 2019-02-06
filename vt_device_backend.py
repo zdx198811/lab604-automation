@@ -15,8 +15,8 @@ import vt_comm
 import labdevices.vt855 as vtXXX           # modify this line for each device
 
 
-HOST, PORT = "172.24.145.55", 9998         # modify this line for each device
-# HOST, PORT = "192.168.1.8", 9998
+# HOST, PORT = "172.24.145.55", 9998         # modify this line for each device
+HOST, PORT = "192.168.1.4", 9998
 
 
 class VT_Handler(BaseRequestHandler):
