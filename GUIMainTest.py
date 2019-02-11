@@ -8,7 +8,7 @@ Test script for the Lab604 testbed GUI framework.
 import sys
 from qtpy import QtCore, QtWidgets
 import csv as csvlib
-from locale import atoi, atof
+from locale import atoi
 import numpy as np
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -17,8 +17,8 @@ import dmt_lib as dmt
 from bitstring import BitArray
 
 
-#ServerAddr = "172.24.145.67", 9998
-ServerAddr = "192.168.1.4", 9998
+ServerAddr = "172.24.145.24", 9998
+#ServerAddr = "192.168.1.4", 9998
 equ_repeat_period = 1
 SUB_START = 20
 SUB_STOP = 35
@@ -37,6 +37,10 @@ class mydevice(vt_device.VT_Device):
         
 
 '''
+preamble_file_dir = './labdevices/0510/qam16_Apr26.csv'
+with open(preamble_file_dir, 'r') as f_pre_int:
+    preamble_int192 = [atoi(item[0]) for item in csvlib.reader(f_pre_int)]
+vt855 = mydevice("vt855", ServerAddr, preamble_int192, 192, 1.5, 4)
 vt855.open_device()
 vt855.print_commandset()
 vt855.query('hello')
@@ -188,7 +192,8 @@ def channel_filter(raw_iq, start, stop):
     return np.reshape(clean_iq, (N*L,), order='F')
                 
 if __name__ == '__main__':
-    preamble_file_dir = 'D:/PythonScripts/vadatech/vt898/qam16_Apr26.csv'
+    # preamble_file_dir = 'D:/PythonScripts/vadatech/vt898/qam16_Apr26.csv'
+    preamble_file_dir = './labdevices/0510/qam16_Apr26.csv'
     with open(preamble_file_dir, 'r') as f_pre_int:
         preamble_int192 = [atoi(item[0]) for item in csvlib.reader(f_pre_int)]
     
