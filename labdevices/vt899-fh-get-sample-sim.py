@@ -75,7 +75,7 @@ def load_local_sample_files(sample_bin_path):
 
 def norm_to_128(originallist):
     meanvalue = np.mean(originallist)
-    templist = [item-meanvalue for item in originallist]
+    templist = [item-meanvalue for item in originallist]  # remove offset
     maxvalue = max(np.abs(templist))
     temparray = np.array([item*(127/maxvalue) for item in templist[0:_SAMPLE_SENT_SIZE]])
     return temparray.astype('int8')

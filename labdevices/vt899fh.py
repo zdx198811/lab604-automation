@@ -22,7 +22,7 @@ from vt_comm import commandset_pack
 from os import name as os_name
 
 subprocess.run(["pwd"])
-_MMAP_FILE = './labdevices/vt899_fh_mmap_file.bin'
+_MMAP_FILE = './labdevices/vt899-fh_mmap_file.bin'
 _RAW_BIN = '/tmp/chan1.bin'
 
 _N_SAMPLE = 28000
@@ -33,8 +33,8 @@ CommandSet = {
         'config'   :{'CloseConnection'  : 'Finish this session. Tell the backend to finish TCP session.',
                      'UpdateRate R'     : 'change sample update rate. R=1,2,3, corresponding to 1s, 0.5s, 0.1s.'},
                      
-        'query_bin':{'getRawBin'    : 'send the whole .bin file (unfiltered data) to frontend',
-                     'getdata'      : 'return ' + str(_N_SAMPLE) + ' symbols (Each symbol has 8bits).'}
+        'query_bin':{'getRawBin'     : 'send the whole .bin file (unfiltered data) to frontend',
+                     'getdata '+str(_N_SAMPLE) : 'return ' + str(_N_SAMPLE) + ' symbols (Each symbol has 8bits).'}
              } # hidden item - 'ComSet' : return the CommandSet. Only used for once when establishing connection. Not visible to frontend user.
 
 def init(sim_flag):
@@ -49,11 +49,11 @@ def handle(command, VT_Handler):
     print(command)
     if (command == 'ComSet'): # When establishing connection, the client side will query 'CommSet' for once. 
         result = sock.sendall(commandset_pack(CommandSet))
-    elif (command == 'helloworld'):
+    elif (command == 'hello'):
         result = sock.sendall(bytes(hello(),'utf-8'))
     elif (command == 'CloseConnection'):
         result = -1
-    elif (command == 'getdata'):
+    elif (command[0:7] == 'getdata'):
         data_len = _N_SAMPLE
         with open(_MMAP_FILE, 'r') as f:
             handle_getdata(sock, f, int(data_len))

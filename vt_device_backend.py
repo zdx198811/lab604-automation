@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     if args.device == 'vt855':
         import labdevices.vt855 as vtXXX
-    elif args.device == 'vt899-fh':  # vt899 as fronthaul backend
-        import labdevices.vt899-fh as vtXXX
+    elif args.device == 'vt899fh':  # vt899 as fronthaul backend
+        import labdevices.vt899fh as vtXXX
     else:
         raise ValueError('not supported device: {}'.format(args.device))
     
