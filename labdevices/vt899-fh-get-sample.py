@@ -58,18 +58,22 @@ def data_feeder_sim():
         samples_56g = mview_int8.tolist()
         samples_8g = decimate(samples_56g, 7)  # n=None, ftype='iir', axis=-1, zero_phase=True
         samples_4g = decimate(samples_8g, 2)
-        sample_list_norm = norm_to_128(samples_4g)
+        sample_list_norm = norm_to_127_int8(samples_4g[0:_SAMPLE_SENT_SIZE])
         sample_list_bin = sample_list_norm.tobytes()
         _m[0:_SAMPLE_SENT_SIZE] = sample_list_bin
         yield np.array(samples_4g[0:20])
 
 
-def norm_to_128(originallist):
-    meanvalue = np.mean(originallist)
-    templist = [item-meanvalue for item in originallist]  # remove offset
-    maxvalue = max(np.abs(templist))
-    temparray = np.array([item*(127/maxvalue) for item in templist[0:_SAMPLE_SENT_SIZE]])
+def norm_to_127_int8(originallist):
+    temparray = norm_to_127(originallist)
     return temparray.astype('int8')
+
+def norm_to_127(samples, remove_bias = True):
+    if remove_bias:
+        s_shift = (np.array(samples)-np.mean(samples))
+        return np.round(127*(s_shift/np.max(np.abs(s_shift))))
+    else:
+        return np.round(127*(np.array(samples)/np.max(np.abs(samples))))
 
 
 if __name__ == '__main__':

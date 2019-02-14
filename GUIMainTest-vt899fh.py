@@ -18,7 +18,7 @@ import dmt_lib as dmt
 from bitstring import BitArray
 
 
-ServerAddr = "172.24.145.40", 9998
+ServerAddr = "172.24.145.24", 9998
 #ServerAddr = "192.168.1.4", 9998
 equ_repeat_period = 1
 SUB_START = 20
@@ -92,7 +92,7 @@ class MyDynamicMplCanvas(MyMplCanvas):
         self.datadevice.open_device()
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.update_figure)
-        timer.start(500)
+        timer.start(300)
         self.update_cnt = 0
         
     def compute_initial_figure(self):
@@ -113,6 +113,8 @@ class MyDynamicMplCanvas(MyMplCanvas):
         cleanxy = channel_filter(self.datadevice.dmt_demod.symbols_iq_shaped, SUB_START, SUB_STOP)
         
         self.axes.cla()
+        self.axes.set_xlim(-1.4, 1.4)
+        self.axes.set_ylim(-1.4, 1.4)
         scatter_x = cleanxy.real
         scatter_y = cleanxy.imag
         self.axes.scatter( scatter_x, scatter_y, s=5)

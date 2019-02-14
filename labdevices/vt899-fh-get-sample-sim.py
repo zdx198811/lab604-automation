@@ -73,18 +73,22 @@ def load_local_sample_files(sample_bin_path):
             samples_4g = decimate(samples_8g, 2)
             _all_samples.append(samples_4g)
 
-def norm_to_128(originallist):
-    meanvalue = np.mean(originallist)
-    templist = [item-meanvalue for item in originallist]  # remove offset
-    maxvalue = max(np.abs(templist))
-    temparray = np.array([item*(127/maxvalue) for item in templist[0:_SAMPLE_SENT_SIZE]])
+def norm_to_127_int8(originallist):
+    temparray = norm_to_127(originallist)
     return temparray.astype('int8')
+
+def norm_to_127(samples, remove_bias = True):
+    if remove_bias:
+        s_shift = (np.array(samples)-np.mean(samples))
+        return np.round(127*(s_shift/np.max(np.abs(s_shift))))
+    else:
+        return np.round(127*(np.array(samples)/np.max(np.abs(samples))))
 
 def gen_bytearrays():
     global _all_samples
     global _all_samples_bin
     for (idx,sample_list) in enumerate(_all_samples):
-        sample_list_norm = norm_to_128(sample_list)
+        sample_list_norm = norm_to_127_int8(sample_list[0:_SAMPLE_SENT_SIZE])
         _all_samples_bin.append(sample_list_norm.tobytes())
 
 if __name__ == '__main__':
