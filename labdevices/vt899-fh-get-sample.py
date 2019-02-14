@@ -22,7 +22,7 @@ import matplotlib.animation as animation
 _SAMPLE_SENT_SIZE = 28000  # 393600/(56/4)
 currdir = getcwd()
 _sample_bin_path = '/tmp/chan1.bin'
-_capture_command = 'amc590tool fpga_capture 1 adc now'
+_capture_command = ['/root/1.2.0_R0/tool/amc590tool', 'fpga_capture', '1', 'adc', 'now']
 
 _f = open(currdir + '/labdevices/vt899-fh_mmap_file.bin', 'rb+')
 _m = mmap.mmap(_f.fileno(), _SAMPLE_SENT_SIZE,  access=mmap.ACCESS_WRITE)
@@ -40,7 +40,8 @@ class ADC_Scope():
         self.patches_collection = []
 
     def update(self, data_frame):
-        self.patches_collection.append(self.axs.plot(data_frame, 'bo-'))
+        # self.patches_collection.append(self.axs.plot(data_frame, 'bo-'))
+        self.patches_collection = self.axs.plot(data_frame, 'bo-')
         return self.patches_collection
 
 
@@ -49,7 +50,7 @@ def data_feeder_sim():
         # run the ADC capturing command
         subprocess.run(_capture_command)
         
-        with open(_sample_bin_path) as f_data:
+        with open(_sample_bin_path, "rb") as f_data:
             bytes_data = f_data.read()
             
         mview = memoryview(bytes_data)
@@ -58,8 +59,8 @@ def data_feeder_sim():
         samples_8g = decimate(samples_56g, 7)  # n=None, ftype='iir', axis=-1, zero_phase=True
         samples_4g = decimate(samples_8g, 2)
         sample_list_norm = norm_to_128(samples_4g)
-        all_samples_bin = sample_list_norm.tobytes()
-        _m[0:_SAMPLE_SENT_SIZE] = all_samples_bin
+        sample_list_bin = sample_list_norm.tobytes()
+        _m[0:_SAMPLE_SENT_SIZE] = sample_list_bin
         yield np.array(samples_4g[0:20])
 
 
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     # plot samples periodically
     scope = ADC_Scope(Scope_axs)
     ani = animation.FuncAnimation(Scope_figure, scope.update, data_feeder_sim,
-                                  repeat=False, blit=True, interval=100)
+                                  repeat=False, blit=True, interval=900)
     plt.show()
     print('finish plotting')
     _m.close()

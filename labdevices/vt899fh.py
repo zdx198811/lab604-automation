@@ -38,9 +38,14 @@ CommandSet = {
              } # hidden item - 'ComSet' : return the CommandSet. Only used for once when establishing connection. Not visible to frontend user.
 
 def init(sim_flag):
-    if sim_flag:
+    """ device initialization
+    Called by the vt_device_backend.py when program starts.
+    """
+    if sim_flag:  # for simulation, run the fake data capturing
         subprocess.Popen(["python", "./labdevices/vt899-fh-get-sample-sim.py"])
     else:
+        subprocess.run(["systemctl", "stop", "firewalld.service"])  # shutdown firewall
+        subprocess.run(["/root/1.2.0_R0/tool/amc590tool", "init"])
         subprocess.Popen(["python", "./labdevices/vt899-fh-get-sample.py"])
         
 def handle(command, VT_Handler):

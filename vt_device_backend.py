@@ -14,7 +14,7 @@ import argparse
 from socketserver import BaseRequestHandler
 import vt_comm
 
-HOST, PORT = "172.24.145.24", 9998         # check this line before running
+HOST, PORT = "172.24.145.40", 9998         # check this line before running
 # HOST, PORT = "192.168.1.4", 9998
 
 if __name__ == "__main__":
