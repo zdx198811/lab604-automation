@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Feb. 13 2019
-Test script for the Lab604 testbed GUI framework. Fronthaul application, using
-vt899-fh as backend.
+Created on Mon Dec  3 13:36:31 2018
+Test script for the Lab604 testbed GUI framework.
 @author: dongxucz
 """
 
@@ -15,6 +14,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import core.vt_device as vt_device
 import core.dmt_lib as dmt
+from bitstring import BitArray
 
 
 ServerAddr = "172.24.145.24", 9998
@@ -34,21 +34,23 @@ class mydevice(vt_device.VT_Device):
                                       sample_rate = sample_rate,
                                       qam_level = 16)
         self.dmt_demod.set_preamble(preamble_int)
+        
 
 '''
 preamble_file_dir = './labdevices/0510/qam16_Apr26.csv'
 with open(preamble_file_dir, 'r') as f_pre_int:
     preamble_int192 = [atoi(item[0]) for item in csvlib.reader(f_pre_int)]
-vt899 = mydevice("vt899", ServerAddr, preamble_int192, 192, 1.5, 4)
-vt899.open_device()
-vt899.print_commandset()
-vt899.query('hello')
-vt899.query('helloworld')
-response1 = vt899.query_bin('getdata 28000')
-response3 = vt899.Comm.read_response()
-vt899.config('CloseConnection')
-vt899.open_state
-vt899.close_device()
+vt855 = mydevice("vt855", ServerAddr, preamble_int192, 192, 1.5, 4)
+vt855.open_device()
+vt855.print_commandset()
+vt855.query('hello')
+vt855.query('helloworld11')
+response1 = vt855.query_bin('getdata 24000')
+response2 = vt855.query_bin('getdata 48000')
+response3 = vt855.Comm.read_response()
+vt855.config('CloseConnection')
+vt855.open_state
+vt855.close_device()
 '''
 
 
@@ -91,7 +93,7 @@ class MyDynamicMplCanvas(MyMplCanvas):
         self.datadevice.open_device()
         timer = QtCore.QTimer(self)
         timer.timeout.connect(self.update_figure)
-        timer.start(300)
+        timer.start(2300)
         self.update_cnt = 0
         
     def compute_initial_figure(self):
@@ -105,15 +107,15 @@ class MyDynamicMplCanvas(MyMplCanvas):
         self.update_cnt = self.update_cnt + 1
         print('update figure: {}th time.'.format(self.update_cnt))
         
-        response = self.datadevice.query_bin('getdata 28000')
+        response = self.datadevice.query_bin('getdata 24000')
         alldata = extract_samples_int(response)
         self.datadevice.dmt_demod.update(alldata, re_calibrate = re_clbrt)
         print('!!!!!!!!!!!{}'.format(self.datadevice.dmt_demod.symbols_iq_shaped.shape))
         cleanxy = channel_filter(self.datadevice.dmt_demod.symbols_iq_shaped, SUB_START, SUB_STOP)
         
         self.axes.cla()
-        self.axes.set_xlim(-1.4, 1.4)
-        self.axes.set_ylim(-1.4, 1.4)
+        self.axes.set_xlim(-1.2, 1.2)
+        self.axes.set_ylim(-1.2, 1.2)
         scatter_x = cleanxy.real
         scatter_y = cleanxy.imag
         self.axes.scatter( scatter_x, scatter_y, s=5)
@@ -177,9 +179,12 @@ Contact: Dongxu Zhang
 
 
 def extract_samples_int(bin_data):
-    mview = memoryview(bin_data)
-    mview_int8 = mview.cast('b')
-    samples_int = mview_int8.tolist()
+    nsample = int(len(bin_data)/1.5)  # each sample occupies 1.5 bytes
+    samples_int = []
+    hex_data = bin_data.hex()
+    for l in range(nsample):
+        sample_bitarray = BitArray('0x'+ hex_data[l*3:(l+1)*3])
+        samples_int.append(sample_bitarray.int)
     return samples_int
 
 def channel_filter(raw_iq, start, stop):
@@ -194,13 +199,13 @@ if __name__ == '__main__':
     with open(preamble_file_dir, 'r') as f_pre_int:
         preamble_int192 = [atoi(item[0]) for item in csvlib.reader(f_pre_int)]
     
-    vt899 = mydevice("vt899", ServerAddr, preamble_int192, 192, 1.5, 4)
+    vt855 = mydevice("vt855", ServerAddr, preamble_int192, 192, 1.5, 4)
     
     qApp = QtWidgets.QApplication(sys.argv)
-    aw = ApplicationWindow(vt899)
+    aw = ApplicationWindow(vt855)
     aw.setWindowTitle("Lab604 GUI test")
     aw.show()
 
     sys.exit(qApp.exec_())
     print("close device")
-    vt899.close_device()
+    vt855.close_device()

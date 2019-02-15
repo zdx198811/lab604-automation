@@ -12,7 +12,7 @@ Discription:
 __version__ = '0.0.1'
 import argparse
 from socketserver import BaseRequestHandler
-import vt_comm
+import core.vt_comm as vt_comm
 
 HOST, PORT = "172.24.145.40", 9998         # check this line before running
 # HOST, PORT = "192.168.1.4", 9998

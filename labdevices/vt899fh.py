@@ -18,7 +18,7 @@ Discription:
 
 import mmap
 import subprocess
-from vt_comm import commandset_pack
+from core.vt_comm import commandset_pack
 from os import name as os_name
 
 subprocess.run(["pwd"])
