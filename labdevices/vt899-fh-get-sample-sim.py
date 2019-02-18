@@ -1,38 +1,37 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Dec 18 17:03:37 2018
+Created on Tue Feb 12 10:42:22 2019
 @author: dongxucz (dongxu.c.zhang@nokia-sbell.com)
 
 Description:
-    Use this script to simulate send_sample_req.py
-    It generates random data points and share the data with VT_Device_backend
+    Use this script to simulate vt899-fh-get-sample.py
+    It loads pre-saved data points and share the data with VT_Device_backend
     process via memory mapped file.
+    Because vt899's ADC works at 56GHz sampling rate, while the fronthaul demo
+    assumes 4GHz sampling rate, signal processing (filtering and downsampling)
+    are also done in this module before writing the mmap file.
 """
 
 import mmap
 from os import listdir, getcwd
 import numpy as np
-from locale import atoi
-import csv as csvlib
-from bitstring import BitArray
+from scipy.signal import decimate
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-_RAW_BIN = '/tmp/chan1.bin'
-_N_SAMPLE = 28114  # 393600/(56/4)
-
+_SAMPLE_SENT_SIZE = 28000  # 393600/(56/4)
 currdir = getcwd()
-_sample_csv_path = currdir + '/labdevices/0510'
+_sample_bin_path = currdir + '/labdevices/0122vt899fh'
 _all_samples = []
 _all_samples_bin = []
-_f = open(currdir + '/labdevices/vt855_mmap_file.bin', 'rb+')
-_m = mmap.mmap(_f.fileno(), 48000,  access=mmap.ACCESS_WRITE)
+
+_f = open(currdir + '/labdevices/vt899-fh_mmap_file.bin', 'rb+')
+_m = mmap.mmap(_f.fileno(), _SAMPLE_SENT_SIZE,  access=mmap.ACCESS_WRITE)
 
 _fig_nrows = 1
 _fig_ncols = 2
 Scope_figure, Scope_axs = plt.subplots(nrows=_fig_nrows, ncols=_fig_ncols)
 Scope_figure.set_size_inches((10, 4))
-
 
 class Dual_Scope():
     def __init__(self, axs):
@@ -55,52 +54,48 @@ def data_feeder_sim():
     loopcnt = len(_all_samples_bin)
     for i in range(99999):
         # print('the {}th plot '.format(i))
-        if i % 2 == 0:
-            _m[0:24000] = _all_samples_bin[i % loopcnt]
-        else:
-            _m[24000:48000] = _all_samples_bin[i % loopcnt]
+        _m[0:_SAMPLE_SENT_SIZE] = _all_samples_bin[i % loopcnt]
         # print('yield data', list(_m[0:20]))
         yield (np.array(_all_samples[i % loopcnt][0:20]),
                np.array(_all_samples[(i-1) % loopcnt][0:20]))
 
 
-def load_local_sample_files(csv_path):
+def load_local_sample_files(sample_bin_path):
     global _all_samples
-    sample_file_list = listdir(csv_path)
+    sample_file_list = listdir(sample_bin_path)
     for filename in sample_file_list:
-        if filename.find('sample_data') == -1:
-            pass
-        else:
-            f_data = open(_sample_csv_path+'/'+filename, 'r')
-            samples_list = [atoi(item[0]) for item in csvlib.reader(f_data)]
-            f_data.close()
-            _all_samples.append(samples_list)
+        with open(sample_bin_path+'/'+filename, 'rb') as f_data:
+            bytes_data = f_data.read()
+            mview = memoryview(bytes_data)
+            mview_int8 = mview.cast('b')
+            samples_56g = mview_int8.tolist()
+            samples_8g = decimate(samples_56g, 7)  # n=None, ftype='iir', axis=-1, zero_phase=True
+            samples_4g = decimate(samples_8g, 2)
+            _all_samples.append(samples_4g)
 
+def norm_to_127_int8(originallist):
+    temparray = norm_to_127(originallist)
+    return temparray.astype('int8')
+
+def norm_to_127(samples, remove_bias = True):
+    if remove_bias:
+        s_shift = (np.array(samples)-np.mean(samples))
+        return np.round(127*(s_shift/np.max(np.abs(s_shift))))
+    else:
+        return np.round(127*(np.array(samples)/np.max(np.abs(samples))))
 
 def gen_bytearrays():
     global _all_samples
     global _all_samples_bin
     for (idx,sample_list) in enumerate(_all_samples):
-        to_add = BitArray()
-        for sample in sample_list:
-            to_add.append(BitArray(int=sample, length=12))
-        _all_samples_bin.append(to_add.bytes)
-
-
-#asdf = _all_samples_bin[0]
-#samples_int = []
-#alldata = asdf.hex()
-#for l in range(16000):  #each packet contains 800 samples
-#    sample_bitarray = BitArray('0x'+ alldata[l*3:(l+1)*3])
-#    samples_int.append(sample_bitarray.int)
-#                
-
+        sample_list_norm = norm_to_127_int8(sample_list[0:_SAMPLE_SENT_SIZE])
+        _all_samples_bin.append(sample_list_norm.tobytes())
 
 if __name__ == '__main__':
     
     # load samples into global variable _all_samples from csv files
-    load_local_sample_files(_sample_csv_path)
-    
+    load_local_sample_files(_sample_bin_path)
+
     # convert samples into bytearray in global variable _all_samples_bin
     gen_bytearrays()
     

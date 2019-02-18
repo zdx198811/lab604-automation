@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Dec 10 11:12:16 2018
+Created on Jan. 31 2019
 @author: dongxucz (dongxu.c.zhang@nokia-sbell.com)
 
 Discription:
@@ -22,25 +22,32 @@ from core.vt_comm import commandset_pack
 from os import name as os_name
 
 subprocess.run(["pwd"])
-_MMAP_FILE = './labdevices/vt855_mmap_file.bin'
+_MMAP_FILE = './labdevices/vt899-fh_mmap_file.bin'
+_RAW_BIN = '/tmp/chan1.bin'
 
+_N_SAMPLE = 28000
 
 CommandSet = {
-        'query'    :{'hello'            : 'return hello back. Just for testing connectivity'},
+        'query'    :{'hello'       : 'return hello this is VT899. For testing connectivity'},
                      
         'config'   :{'CloseConnection'  : 'Finish this session. Tell the backend to finish TCP session.',
                      'UpdateRate R'     : 'change sample update rate. R=1,2,3, corresponding to 1s, 0.5s, 0.1s.'},
                      
-        'query_bin':{'getdata 24000'    : 'return 16000 symbols (Each symbol has 12bits). 24KB in total',
-                     'getdata 48000'    : 'return 32000 symbols (Each symbol has 12bits). 48KB in total'}
+        'query_bin':{'getRawBin'     : 'send the whole .bin file (unfiltered data) to frontend',
+                     'getdata '+str(_N_SAMPLE) : 'return ' + str(_N_SAMPLE) + ' symbols (Each symbol has 8bits).'}
              } # hidden item - 'ComSet' : return the CommandSet. Only used for once when establishing connection. Not visible to frontend user.
 
 def init(sim_flag):
-    if sim_flag:
-        subprocess.Popen(["python", "./labdevices/send_sample_req_sim.py"])
+    """ device initialization
+    Called by the vt_device_backend.py when program starts.
+    """
+    if sim_flag:  # for simulation, run the fake data capturing
+        subprocess.Popen(["python", "./labdevices/vt899-fh-get-sample-sim.py"])
     else:
-        subprocess.Popen(["python", "./labdevices/send_sample_req.py"])
-
+        subprocess.run(["systemctl", "stop", "firewalld.service"])  # shutdown firewall
+        subprocess.run(["/root/1.2.0_R0/tool/amc590tool", "init"])
+        subprocess.Popen(["python", "./labdevices/vt899-fh-get-sample.py"])
+        
 def handle(command, VT_Handler):
     result = 1 # default value is 1. 
     sock = VT_Handler.request
@@ -48,16 +55,16 @@ def handle(command, VT_Handler):
     if (command == 'ComSet'): # When establishing connection, the client side will query 'CommSet' for once. 
         result = sock.sendall(commandset_pack(CommandSet))
     elif (command == 'hello'):
-        result = sock.sendall(bytes(helloworld(),'utf-8'))
+        result = sock.sendall(bytes(hello(),'utf-8'))
     elif (command == 'CloseConnection'):
         result = -1
     elif (command[0:7] == 'getdata'):
-        data_len = command[8:13] # '24000' or '48000'
-        if data_len in ['24000', '48000']:
-            with open(_MMAP_FILE, 'r') as f:
-                handle_getdata(sock, f, int(data_len))
-        else:
-            sock.sendall(bytes('Command {} not recognized!'.format(command),'utf-8'))
+        data_len = _N_SAMPLE
+        with open(_MMAP_FILE, 'r') as f:
+            handle_getdata(sock, f, int(data_len))
+    elif (command == 'getRawBin'):
+        with open(_RAW_BIN, 'r') as f:
+            sock.sendfile(f)
     elif (command[0:10] == 'UpdateRate'):
         if (command[11] in ['1' , '2' , '3']):
             handle_UpdateRate(sock)
@@ -68,8 +75,8 @@ def handle(command, VT_Handler):
     return result
 
 
-def helloworld():
-    return 'hello, this is VT855!'
+def hello():
+    return 'hello, this is VT899!'
 
 
 def handle_getdata(sock, f, data_len):
@@ -86,5 +93,4 @@ def handle_getdata(sock, f, data_len):
 
 def handle_UpdateRate(sock):
     sock.sendall(bytes('not supported yet', 'utf-8'))
-
 

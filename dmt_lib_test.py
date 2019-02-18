@@ -9,7 +9,7 @@ from random import randint
 import numpy as np
 import csv as csvlib
 from locale import atoi, atof
-from dmt_lib import DmtMod, DmtDeMod
+from core.dmt_lib import DmtMod, DmtDeMod
 from bitstring import BitArray
 import matplotlib.pyplot as plt
 

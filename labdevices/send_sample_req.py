@@ -25,7 +25,7 @@ from time import sleep
 PKT_BYTES = 1200
 N_REQ = 9999
 
-_f = open('mmap_file.bin', 'rb+')
+_f = open('vt855_mmap_file.bin', 'rb+')
 _m = mmap.mmap(_f.fileno(), 48000,  access=mmap.ACCESS_WRITE)
 
 msg_to_fpga = 'abcdefghijklmnopqrstuvwxyz'

@@ -12,9 +12,9 @@ Discription:
 __version__ = '0.0.1'
 import argparse
 from socketserver import BaseRequestHandler
-import vt_comm
+import core.vt_comm as vt_comm
 
-HOST, PORT = "172.24.145.24", 9998         # check this line before running
+HOST, PORT = "172.24.145.40", 9998         # check this line before running
 # HOST, PORT = "192.168.1.4", 9998
 
 if __name__ == "__main__":
@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     if args.device == 'vt855':
         import labdevices.vt855 as vtXXX
-    elif args.device == 'vt899':
-        import labdevices.vt899 as vtXXX
+    elif args.device == 'vt899fh':  # vt899 as fronthaul backend
+        import labdevices.vt899fh as vtXXX
     else:
         raise ValueError('not supported device: {}'.format(args.device))
     
