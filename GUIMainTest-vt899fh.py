@@ -165,15 +165,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
     def about(self):
         QtWidgets.QMessageBox.about(self, "About",
-                                    """GUIMainTest.py
-Copyright 2019 Nokia Shanghai Bell.
-
-This program is a test script for the Lab604 testbed GUI framework.
-
-Contact: Dongxu Zhang
-         dongxu.c.zhang@nokia-sbell.com
-         +8613811230782.
-""")
+        """      GUIMainTest.py
+        Copyright 2019 Nokia Shanghai Bell.
+        This program is a test script for the Lab604 testbed GUI framework.
+        Contact: Dongxu Zhang
+        Email: dongxu.c.zhang@nokia-sbell.com
+        Phone: +8613811230782.""")
 
 
 def extract_samples_int(bin_data):
