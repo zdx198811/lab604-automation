@@ -5,7 +5,7 @@ Created on Fri Nov 30 11:05:18 2018
 Discription: class definition for the VT_Device. (GUI frontend module)
 """
 __version__ = '0.0.1'
-import vt_comm
+from . import vt_comm
 
 
 class VT_Device:

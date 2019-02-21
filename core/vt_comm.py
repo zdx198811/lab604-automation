@@ -94,15 +94,26 @@ class VT_CommClient(VT_Comm):
     def connect(self, ServerAddrTuple):
         self.serverIP = ServerAddrTuple[0]
         self.serverPort = ServerAddrTuple[1]
+        return_mesaage = ''
         try:
             self.sock.connect((self.serverIP, self.serverPort))
+        except OSError as err:
+            return_mesaage = "{}.\nTip: Check the address".format(str(err))
+            self.sock.close()
+            return return_mesaage
         except ConnectionRefusedError as err:
             print(type(err), str(err))
             self.sock.close()
-            return "{}. Tip: Check the address".format(str(err))
+            return "{}.\nTip: Check the address".format(str(err))
+#        else:
+#            self.sock.close()
+#            return "time out!"
         self.clientIP, self.clientPort = self.sock.getsockname()
         self.socket_state = 1
-        return "Connected to {}:{}".format(self.serverIP, str(self.serverPort))
+        return_mesaage = "Connected to !! {}:{}".format(self.serverIP, str(self.serverPort))
+        return return_mesaage
+
+
 
     def send_command(self, command_str):
         """ send command to be remotely executed and return an integer.

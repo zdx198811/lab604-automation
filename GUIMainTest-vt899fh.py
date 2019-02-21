@@ -41,8 +41,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         # register the remote hardware device
         self.datadevice = datadevice
-        self.datadevice.open_device()
-        self.datadevice.print_commandset()
         
         # setup main window
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
@@ -83,7 +81,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         
         self.setCentralWidget(self.main_dialog)
         self.statusBar().showMessage("Not connected. Enter bakcend device IP.")
-        
+        self.ConnectButton.clicked.connect(self.openVTdevice)
+        self.AddrEdit.returnPressed.connect(self.openVTdevice)
+
     def createTopFigureGroupBox(self):
         self.TopFigureGroupBox = QtWidgets.QGroupBox("Background information")
         self.inforGraph = QtWidgets.QLabel(self)
@@ -105,8 +105,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.BottomRightCommandGroupBox = QtWidgets.QGroupBox("control")
         self.Console = QtWidgets.QTextBrowser()
         self.AddrEdit = QtWidgets.QLineEdit()
-        self.ConnectButton = ConnectBtn()
-        
+        self.ConnectButton = ConnectBtn(self.AddrEdit)
+
         layout = QtWidgets.QVBoxLayout()
         sublayout = QtWidgets.QHBoxLayout()
         sublayout_widget = QtWidgets.QWidget()
@@ -116,7 +116,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.Console)
         layout.addWidget(sublayout_widget)
         self.BottomRightCommandGroupBox.setLayout(layout)
-        
+
+    def openVTdevice(self):
+        ipaddr = self.AddrEdit.text()
+        print((ipaddr, 9998))
+        self.datadevice.set_net_addr((ipaddr,9998))
+        self.Console.append('connecting to'+ ipaddr)
+        result = self.datadevice.open_device()
+        self.Console.append(result)
+
     def fileQuit(self):
         # close the VT_Device to inform the backend ending the TCP session.
         self.datadevice.close_device()
@@ -146,7 +154,9 @@ if __name__ == '__main__':
     qApp = QtWidgets.QApplication(sys.argv)
     aw = ApplicationWindow(vt899)
     
-    aw.ConnectButton.signal_wraper.sgnl.connect(aw.Console.append)
+    # aw.ConnectButton.signal_wraper.click_connect_sgnl.connect(aw.Console.append)
+    
+    
     
     aw.setWindowTitle("Lab604 GUI test")
     aw.show()
