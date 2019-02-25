@@ -15,7 +15,7 @@ import core.vt_device as vt_device
 import core.dmt_lib as dmt
 from guiunits.plotconstallation import MyDynamicMplCanvas
 from guiunits.connectbutton import ConnectBtn
-from guiunits.calculator import Example
+from guiunits.ledpannel import LedPannel
 
 ServerAddr = "172.24.145.24", 9998
 #ServerAddr = "192.168.1.4", 9998
@@ -32,7 +32,6 @@ class mydevice(vt_device.VT_Device):
                                       sample_rate = sample_rate,
                                       qam_level = 16)
         self.dmt_demod.set_preamble(preamble_int)
-
 
    
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -72,17 +71,20 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         subLayout_widget.setLayout(subLayout)
         mainLayout.addWidget(self.TopFigureGroupBox)
         mainLayout.addWidget(subLayout_widget)
-        # mainLayout.setRowStretch(1, 1)
-        # mainLayout.setRowStretch(2, 1)
-        # mainLayout.setColumnStretch(0, 1)
-        # mainLayout.setColumnStretch(1, 1)
         self.main_dialog.setLayout(mainLayout)
-        
-        
-        self.setCentralWidget(self.main_dialog)
-        self.statusBar().showMessage("Not connected. Enter bakcend device IP.")
+
+        # initialize signal-slot connections        
         self.ConnectButton.clicked.connect(self.openVTdevice)
         self.AddrEdit.returnPressed.connect(self.openVTdevice)
+        self.StartStopButton.clicked.connect(self.startAcquisition)
+        self.QuitButton.clicked.connect(self.closeEvent)
+
+        # create the main timer object
+        self.timer = QtCore.QTimer(self)
+        
+        # set QMainWindow's central widget and show status bar message
+        self.setCentralWidget(self.main_dialog)
+        self.statusBar().showMessage("Not connected. Enter bakcend device IP.")
 
     def createTopFigureGroupBox(self):
         self.TopFigureGroupBox = QtWidgets.QGroupBox("Background information")
@@ -96,7 +98,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         
     def createBottomLeftLedGourpBox(self):
         self.BottomLeftLedGourpBox = QtWidgets.QGroupBox("channel status")
-        self.led = Example()
+        self.led = LedPannel()
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.led)
         self.BottomLeftLedGourpBox.setLayout(layout)
@@ -106,12 +108,16 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.Console = QtWidgets.QTextBrowser()
         self.AddrEdit = QtWidgets.QLineEdit()
         self.ConnectButton = ConnectBtn(self.AddrEdit)
+        self.StartStopButton = QtWidgets.QPushButton("Start acquisition")
+        self.QuitButton = QtWidgets.QPushButton("Quit")
 
         layout = QtWidgets.QVBoxLayout()
-        sublayout = QtWidgets.QHBoxLayout()
+        sublayout = QtWidgets.QGridLayout()
         sublayout_widget = QtWidgets.QWidget()
-        sublayout.addWidget(self.AddrEdit)
-        sublayout.addWidget(self.ConnectButton)
+        sublayout.addWidget(self.AddrEdit, 1, 0)
+        sublayout.addWidget(self.ConnectButton, 1, 1)
+        sublayout.addWidget(self.StartStopButton, 2, 0)
+        sublayout.addWidget(self.QuitButton, 2, 1)
         sublayout_widget.setLayout(sublayout)
         layout.addWidget(self.Console)
         layout.addWidget(sublayout_widget)
@@ -124,6 +130,24 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.Console.append('connecting to'+ ipaddr)
         result = self.datadevice.open_device()
         self.Console.append(result)
+
+    def startAcquisition(self):
+        if (self.datadevice.open_state == 1):
+            self.Console.append("Start data acquisition!")
+            self.timer.setInterval(600)
+            self.timer.start()
+            self.StartStopButton.clicked.disconnect(self.startAcquisition)
+            self.StartStopButton.setText("Stop")
+            self.StartStopButton.clicked.connect(self.stopAcquisition)
+        else:
+            self.Console.append("ERROR: Data Device Not Connected.")
+        
+    def stopAcquisition(self):
+        self.Console.append("Stop data acquisition!")
+        self.timer.stop()
+        self.StartStopButton.clicked.disconnect(self.stopAcquisition)
+        self.StartStopButton.setText("Start acquisition")
+        self.StartStopButton.clicked.connect(self.startAcquisition)
 
     def fileQuit(self):
         # close the VT_Device to inform the backend ending the TCP session.

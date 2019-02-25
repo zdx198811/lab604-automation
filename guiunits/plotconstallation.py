@@ -64,9 +64,9 @@ class MyDynamicMplCanvas(MplCanvas):
     def __init__(self, *args, **kwargs):
         MplCanvas.__init__(self, *args, **kwargs)
         # self.datadevice.open_device()
-        timer = QtCore.QTimer(self)
-        timer.timeout.connect(self.update_figure)
-        timer.start(_PLOT_INTERVAL)
+        # timer = QtCore.QTimer(self)
+        # timer.timeout.connect(self.update_figure)
+        # timer.start(_PLOT_INTERVAL)
         self.update_cnt = 0
         
     def compute_initial_figure(self):
