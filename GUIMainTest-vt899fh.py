@@ -98,9 +98,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         
     def createBottomLeftLedGourpBox(self):
         self.BottomLeftLedGourpBox = QtWidgets.QGroupBox("channel status")
-        self.led = LedPannel()
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self.led)
+        self.leds = LedPannel()
+        self.constellation = MyDynamicMplCanvas(parent=None, width=5, height=4,
+                                   dpi=100, datadevice=self.datadevice)
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(self.leds)
+        layout.addWidget(self.constellation)
         self.BottomLeftLedGourpBox.setLayout(layout)
         
     def createBottomRightCommandGroupBox(self):

@@ -68,6 +68,7 @@ class MyDynamicMplCanvas(MplCanvas):
         # timer.timeout.connect(self.update_figure)
         # timer.start(_PLOT_INTERVAL)
         self.update_cnt = 0
+        self.draw()
         
     def compute_initial_figure(self):
         self.axes.plot([0]*20, 'ro-')
