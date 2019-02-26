@@ -2,11 +2,11 @@
 
 ## overall sytem architecture
 
-![system architecture pic](https://github.com/zdx198811/lab604-automation/tree/dev/doc/images/system_architecture.png "system architecture")
+![system architecture](https://github.com/zdx198811/lab604-automation/blob/dev/doc/images/system_architecture.png "system architecture")
 
 ## key modules of the code
 
-![code modules](https://github.com/zdx198811/lab604-automation/tree/dev/doc/images/code_modules.png "code modules")
+![code modules](https://github.com/zdx198811/lab604-automation/blob/dev/doc/images/code_modules.png "code modules")
 
 ## usage instruction
 
