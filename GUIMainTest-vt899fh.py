@@ -58,14 +58,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         # create three groupbox
         self.createTopFigureGroupBox()
         self.createBottomLeftLedGourpBox()
+        self.createBottomMiddlePlotGroupBox()
         self.createBottomRightCommandGroupBox()
         
         # setup main layout
         mainLayout = QtWidgets.QVBoxLayout()
         subLayout = QtWidgets.QHBoxLayout()
-        subLayout.addStretch(1)
         subLayout.addWidget(self.BottomLeftLedGourpBox)
-        subLayout.addStretch(1)
+        # subLayout.addStretch(1)
+        subLayout.addWidget(self.BottomMiddlePlotGourpBox)
         subLayout.addWidget(self.BottomRightCommandGroupBox)
         subLayout_widget = QtWidgets.QWidget()
         subLayout_widget.setLayout(subLayout)
@@ -77,11 +78,14 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ConnectButton.clicked.connect(self.openVTdevice)
         self.AddrEdit.returnPressed.connect(self.openVTdevice)
         self.StartStopButton.clicked.connect(self.startAcquisition)
+        self.TestConnectionButton.clicked.connect(self.testConnection)
         self.QuitButton.clicked.connect(self.closeEvent)
-
+        self.constellation.consle_output_sgnlwrapper.sgnl.connect(self.Console.append)
+        self.datadevice.qt_gui_sgnlwrapper.sgnl.connect(self.Console.append)
+        
         # create the main timer object
         self.timer = QtCore.QTimer(self)
-        
+        self.timer.timeout.connect(self.constellation.update_figure)
         # set QMainWindow's central widget and show status bar message
         self.setCentralWidget(self.main_dialog)
         self.statusBar().showMessage("Not connected. Enter bakcend device IP.")
@@ -93,34 +97,41 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.inforGraph.setPixmap(pixmap)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.inforGraph)
-        layout.addStretch(1)
+        # layout.addStretch(1)
         self.TopFigureGroupBox.setLayout(layout)   
         
     def createBottomLeftLedGourpBox(self):
         self.BottomLeftLedGourpBox = QtWidgets.QGroupBox("channel status")
         self.leds = LedPannel()
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(self.leds)
+        self.BottomLeftLedGourpBox.setLayout(layout)
+    
+    def createBottomMiddlePlotGroupBox(self):
+        self.BottomMiddlePlotGourpBox = QtWidgets.QGroupBox("constellation digram")
         self.constellation = MyDynamicMplCanvas(parent=None, width=5, height=4,
                                    dpi=100, datadevice=self.datadevice)
         layout = QtWidgets.QHBoxLayout()
-        layout.addWidget(self.leds)
         layout.addWidget(self.constellation)
-        self.BottomLeftLedGourpBox.setLayout(layout)
+        self.BottomMiddlePlotGourpBox.setLayout(layout)
         
     def createBottomRightCommandGroupBox(self):
         self.BottomRightCommandGroupBox = QtWidgets.QGroupBox("control")
         self.Console = QtWidgets.QTextBrowser()
         self.AddrEdit = QtWidgets.QLineEdit()
         self.ConnectButton = ConnectBtn(self.AddrEdit)
+        self.TestConnectionButton = QtWidgets.QPushButton("Test Connection")
         self.StartStopButton = QtWidgets.QPushButton("Start acquisition")
         self.QuitButton = QtWidgets.QPushButton("Quit")
 
         layout = QtWidgets.QVBoxLayout()
         sublayout = QtWidgets.QGridLayout()
         sublayout_widget = QtWidgets.QWidget()
-        sublayout.addWidget(self.AddrEdit, 1, 0)
-        sublayout.addWidget(self.ConnectButton, 1, 1)
-        sublayout.addWidget(self.StartStopButton, 2, 0)
-        sublayout.addWidget(self.QuitButton, 2, 1)
+        sublayout.addWidget(self.AddrEdit, 1, 0, 1, 2)
+        sublayout.addWidget(self.ConnectButton, 1, 2)
+        sublayout.addWidget(self.TestConnectionButton, 2, 0)
+        sublayout.addWidget(self.StartStopButton, 2, 1)
+        sublayout.addWidget(self.QuitButton, 2, 2)
         sublayout_widget.setLayout(sublayout)
         layout.addWidget(self.Console)
         layout.addWidget(sublayout_widget)
@@ -131,8 +142,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         print((ipaddr, 9998))
         self.datadevice.set_net_addr((ipaddr,9998))
         self.Console.append('connecting to'+ ipaddr)
-        result = self.datadevice.open_device()
-        self.Console.append(result)
+        self.datadevice.open_device()
+
+    def testConnection(self):
+        if self.datadevice.open_state == 1:
+            self.datadevice.query('hello')
+        else:
+            self.Console.append('not connected (datadevice.open_state = 0)')
 
     def startAcquisition(self):
         if (self.datadevice.open_state == 1):
@@ -146,7 +162,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.Console.append("ERROR: Data Device Not Connected.")
         
     def stopAcquisition(self):
-        self.Console.append("Stop data acquisition!")
+        self.Console.append("Stopped!")
         self.timer.stop()
         self.StartStopButton.clicked.disconnect(self.stopAcquisition)
         self.StartStopButton.setText("Start acquisition")

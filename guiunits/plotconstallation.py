@@ -7,7 +7,8 @@ Created on Wed Feb 20 10:51:03 2019
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from qtpy import QtCore, QtWidgets
+from PyQt5 import QtWidgets
+from PyQt5.QtCore import pyqtSignal, QObject
 import numpy as np
 
 _equ_repeat_period = 1
@@ -30,12 +31,12 @@ def channel_filter(raw_iq, start, stop):
 class MplCanvas(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100,
+    def __init__(self, parent=None, width=4, height=4, dpi=100,
                  datadevice=None):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
         self.datadevice = datadevice
-        self.compute_initial_figure()
+        # self.compute_initial_figure()
 
         FigureCanvas.__init__(self, fig)
         self.setParent(parent)
@@ -58,8 +59,12 @@ class MyStaticMplCanvas(MplCanvas):
         self.axes.plot(t, s)
 
 
+
+class SigWrapper(QObject):
+    sgnl = pyqtSignal(str)
+
 class MyDynamicMplCanvas(MplCanvas):
-    """A canvas that updates itself every second with a new plot."""
+    """A canvas that can update plots with new data from self.datadevice."""
 
     def __init__(self, *args, **kwargs):
         MplCanvas.__init__(self, *args, **kwargs)
@@ -69,10 +74,14 @@ class MyDynamicMplCanvas(MplCanvas):
         # timer.start(_PLOT_INTERVAL)
         self.update_cnt = 0
         self.draw()
+        self.consle_output_sgnlwrapper = SigWrapper()
         
     def compute_initial_figure(self):
         self.axes.plot([0]*20, 'ro-')
 
+    def send_console_output(self, console_output):
+        self.consle_output_sgnlwrapper.sgnl.emit(console_output)
+        
     def update_figure(self):
         if (self.update_cnt % _equ_repeat_period) == 0:
             re_clbrt = True
@@ -83,12 +92,15 @@ class MyDynamicMplCanvas(MplCanvas):
         
         if (self.datadevice.open_state == 1):
             response = self.datadevice.query_bin('getdata 28000')
+            self.send_console_output('getdata 28000')
             alldata = extract_samples_int(response)
             self.datadevice.dmt_demod.update(alldata, re_calibrate = re_clbrt)
             print('!!!!!!!!!!!{}'.format(self.datadevice.dmt_demod.symbols_iq_shaped.shape))
-            cleanxy = channel_filter(self.datadevice.dmt_demod.symbols_iq_shaped, _SUB_START, _SUB_STOP)
+            cleanxy = channel_filter(self.datadevice.dmt_demod.symbols_iq_shaped,
+                                     _SUB_START, _SUB_STOP)
         else:
-            raise ValueError('data device has not been opend')
+            self.send_console_output('ERROR: data device not opend')
+            # raise ValueError('data device has not been opend')
         self.axes.cla()
         self.axes.set_xlim(-1.4, 1.4)
         self.axes.set_ylim(-1.4, 1.4)

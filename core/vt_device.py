@@ -3,11 +3,19 @@
 Created on Fri Nov 30 11:05:18 2018
 @author: dongxu zhang
 Discription: class definition for the VT_Device. (GUI frontend module)
+Change log:
+    20190227 - add pyqtSignal support to enable PyQt based GUI signal emit
 """
+
 __version__ = '0.0.1'
+from PyQt5.QtCore import pyqtSignal, QObject
 from . import vt_comm
 
 
+class SigWrapper(QObject):
+    sgnl = pyqtSignal(str)
+    
+    
 class VT_Device:
     """ the father class of all Vadatech devices (for GUI frontend).
     
@@ -30,6 +38,7 @@ class VT_Device:
         config() - write message to the backend
         query() - retrieve data from the backend
         print_commandset() - print out all the CommandSet
+        send_gui_message() - send a string (emit signal) to the GUI (qt slot)
     """
     # class variables shared by all instances:
 
@@ -44,6 +53,10 @@ class VT_Device:
         # new VT_Comm subclass and then overide this
         # class variable when instantiate VT_Device objects.
         self.net_addr = ("localhost", 9997)
+        self.qt_gui_sgnlwrapper = SigWrapper()
+
+    def send_gui_message(self, msg):
+        self.qt_gui_sgnlwrapper.sgnl.emit(msg)
 
     def set_net_addr(self, addrtuple):
         """ example: ipaddr = "192.168.56.101", tcpport = 9997 """
@@ -66,6 +79,7 @@ class VT_Device:
                 (self.open_state, response) = self.Comm.query('ComSet')
                 if (self.open_state == 1):
                     self.CommandSet = vt_comm.commandset_unpack(response)
+        self.send_gui_message(ConnectResult)
         return ConnectResult
 
     def config(self, command_str):
@@ -84,18 +98,22 @@ class VT_Device:
         to close the session.
         """
         if self.open_state == 0:
+            self.send_gui_message('Not in open state!')
             print('Not in open state!')
         else:
             if self.open_state == 1:
                 self.config('CloseConnection')
             self.Comm.close_connection()
             self.open_state = 0
+            self.send_gui_message('Device closed.')
             print('Device closed.')
 
     def query(self, arg_str):
         """ Send a command, then return a string from the remote backend. """
         response = self.query_bin(arg_str)
-        return response.decode()
+        response_str = response.decode()
+        self.send_gui_message(response_str)
+        return response_str
 
     def query_bin(self, arg_str):
         """ Send a command, then return a bytearray from the remote backend."""
@@ -109,6 +127,7 @@ class VT_Device:
 
     def print_commandset(self):
         print(self.args_str_parse.__doc__)
+        self.send_gui_message(self.CommandSet)
         return self.CommandSet
 
     def args_str_parse(self, arg_str):
