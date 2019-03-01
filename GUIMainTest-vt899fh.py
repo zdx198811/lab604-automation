@@ -7,21 +7,19 @@ vt899-fh as backend.
 """
 
 import sys
-from qtpy import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 import csv as csvlib
 from locale import atoi
 import numpy as np
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 import core.vt_device as vt_device
 import core.dmt_lib as dmt
-
+from guiunits.plotconstallation import MyDynamicMplCanvas
+from guiunits.connectbutton import ConnectBtn
+from guiunits.ledpannel import LedPannel
 
 ServerAddr = "172.24.145.24", 9998
 #ServerAddr = "192.168.1.4", 9998
-equ_repeat_period = 1
-SUB_START = 20
-SUB_STOP = 35
+
 
 class mydevice(vt_device.VT_Device):
     def __init__(self, devname, addr, preamble_int, frame_len, symbol_rate, sample_rate):
@@ -34,130 +32,148 @@ class mydevice(vt_device.VT_Device):
                                       sample_rate = sample_rate,
                                       qam_level = 16)
         self.dmt_demod.set_preamble(preamble_int)
-
-'''
-preamble_file_dir = './labdevices/0510/qam16_Apr26.csv'
-with open(preamble_file_dir, 'r') as f_pre_int:
-    preamble_int192 = [atoi(item[0]) for item in csvlib.reader(f_pre_int)]
-vt899 = mydevice("vt899", ServerAddr, preamble_int192, 192, 1.5, 4)
-vt899.open_device()
-vt899.print_commandset()
-vt899.query('hello')
-vt899.query('helloworld')
-response1 = vt899.query_bin('getdata 28000')
-response3 = vt899.Comm.read_response()
-vt899.config('CloseConnection')
-vt899.open_state
-vt899.close_device()
-'''
-
-
-class MyMplCanvas(FigureCanvas):
-    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
-
-    def __init__(self, parent=None, width=5, height=4, dpi=100,
-                 datadevice=None):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        self.datadevice = datadevice
-        self.compute_initial_figure()
-
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
-
-        FigureCanvas.setSizePolicy(self,
-                                   QtWidgets.QSizePolicy.Expanding,
-                                   QtWidgets.QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
-
-    def compute_initial_figure(self):
-        pass
-
-
-class MyStaticMplCanvas(MyMplCanvas):
-    """Simple canvas with a sine plot."""
-
-    def compute_initial_figure(self):
-        t = np.arange(0.0, 3.0, 0.01)
-        s = np.sin(2*np.pi*t)
-        self.axes.plot(t, s)
-
-
-class MyDynamicMplCanvas(MyMplCanvas):
-    """A canvas that updates itself every second with a new plot."""
-
-    def __init__(self, *args, **kwargs):
-        MyMplCanvas.__init__(self, *args, **kwargs)
-        self.datadevice.open_device()
-        timer = QtCore.QTimer(self)
-        timer.timeout.connect(self.update_figure)
-        timer.start(300)
-        self.update_cnt = 0
-        
-    def compute_initial_figure(self):
-        self.axes.plot([0]*20, 'ro-')
-
-    def update_figure(self):
-        if (self.update_cnt % equ_repeat_period) == 0:
-            re_clbrt = True
-        else:
-            re_clbrt = False
-        self.update_cnt = self.update_cnt + 1
-        print('update figure: {}th time.'.format(self.update_cnt))
-        
-        response = self.datadevice.query_bin('getdata 28000')
-        alldata = extract_samples_int(response)
-        self.datadevice.dmt_demod.update(alldata, re_calibrate = re_clbrt)
-        print('!!!!!!!!!!!{}'.format(self.datadevice.dmt_demod.symbols_iq_shaped.shape))
-        cleanxy = channel_filter(self.datadevice.dmt_demod.symbols_iq_shaped, SUB_START, SUB_STOP)
-        
-        self.axes.cla()
-        self.axes.set_xlim(-1.4, 1.4)
-        self.axes.set_ylim(-1.4, 1.4)
-        scatter_x = cleanxy.real
-        scatter_y = cleanxy.imag
-        self.axes.scatter( scatter_x, scatter_y, s=5)
-        self.draw()
-
+        self.evm_func = dmt.evm_estimate
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     def __init__(self, datadevice):
         QtWidgets.QMainWindow.__init__(self)
+
+        # register the remote hardware device
+        self.datadevice = datadevice
+        
+        # setup main window
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setWindowTitle("application main window")
-
+        self.setWindowTitle("Fronthaul demo with backend vt899fh")
         self.file_menu = QtWidgets.QMenu('&File', self)
-        self.file_menu.addAction('&Quit', self.fileQuit,
-                                 QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
+        self.file_menu.addAction('&Quit', self.fileQuit, QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
         self.menuBar().addMenu(self.file_menu)
-
         self.help_menu = QtWidgets.QMenu('&Help', self)
         self.menuBar().addSeparator()
         self.menuBar().addMenu(self.help_menu)
-
         self.help_menu.addAction('&About', self.about)
+        
+        # create the main dialog
+        self.main_dialog = QtWidgets.QDialog()
+        
+        # create three groupbox
+        self.createTopFigureGroupBox()
+        self.createBottomLeftLedGourpBox()
+        self.createBottomMiddlePlotGroupBox()
+        self.createBottomRightCommandGroupBox()
+        
+        # setup main layout
+        mainLayout = QtWidgets.QVBoxLayout()
+        subLayout = QtWidgets.QHBoxLayout()
+        subLayout.addWidget(self.BottomLeftLedGourpBox)
+        # subLayout.addStretch(1)
+        subLayout.addWidget(self.BottomMiddlePlotGourpBox)
+        subLayout.addWidget(self.BottomRightCommandGroupBox)
+        subLayout_widget = QtWidgets.QWidget()
+        subLayout_widget.setLayout(subLayout)
+        mainLayout.addWidget(self.TopFigureGroupBox)
+        mainLayout.addWidget(subLayout_widget)
+        self.main_dialog.setLayout(mainLayout)
 
-        self.main_widget = QtWidgets.QWidget(self)
+        # initialize signal-slot connections        
+        self.ConnectButton.clicked.connect(self.openVTdevice)
+        self.AddrEdit.returnPressed.connect(self.openVTdevice)
+        self.StartStopButton.clicked.connect(self.startAcquisition)
+        self.TestConnectionButton.clicked.connect(self.testConnection)
+        self.QuitButton.clicked.connect(self.closeEvent)
+        self.constellation.consle_output_sgnlwrapper.sgnl.connect(self.Console.append)
+        self.datadevice.qt_gui_sgnlwrapper.sgnl.connect(self.Console.append)
+        
+        # create the main timer object
+        self.timer = QtCore.QTimer(self)
+        self.timer.timeout.connect(self.constellation.update_figure)
+        # set QMainWindow's central widget and show status bar message
+        self.setCentralWidget(self.main_dialog)
+        self.statusBar().showMessage("Not connected. Enter bakcend device IP.")
 
-        qlayout = QtWidgets.QHBoxLayout(self.main_widget)
-        cleft = MyDynamicMplCanvas(self.main_widget, width=5, height=4,
-                                   dpi=100, datadevice=datadevice)
+    def createTopFigureGroupBox(self):
+        self.TopFigureGroupBox = QtWidgets.QGroupBox("Background information")
+        self.inforGraph = QtWidgets.QLabel(self)
+        pixmap = QtGui.QPixmap('./guiunits/image.png')
+        self.inforGraph.setPixmap(pixmap)
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.inforGraph)
+        # layout.addStretch(1)
+        self.TopFigureGroupBox.setLayout(layout)   
+        
+    def createBottomLeftLedGourpBox(self):
+        self.BottomLeftLedGourpBox = QtWidgets.QGroupBox("channel status")
+        self.leds = LedPannel()
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(self.leds)
+        self.BottomLeftLedGourpBox.setLayout(layout)
+    
+    def createBottomMiddlePlotGroupBox(self):
+        self.BottomMiddlePlotGourpBox = QtWidgets.QGroupBox("constellation digram")
+        self.constellation = MyDynamicMplCanvas(parent=None, width=5, height=4,
+                                   dpi=100, datadevice=self.datadevice)
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(self.constellation)
+        self.BottomMiddlePlotGourpBox.setLayout(layout)
+        
+    def createBottomRightCommandGroupBox(self):
+        self.BottomRightCommandGroupBox = QtWidgets.QGroupBox("control")
+        self.Console = QtWidgets.QTextBrowser()
+        self.AddrEdit = QtWidgets.QLineEdit()
+        self.ConnectButton = ConnectBtn(self.AddrEdit)
+        self.TestConnectionButton = QtWidgets.QPushButton("Test Connection")
+        self.StartStopButton = QtWidgets.QPushButton("Start acquisition")
+        self.QuitButton = QtWidgets.QPushButton("Quit")
 
-        qlayout.addWidget(cleft)
-        # qlayout.addWidget(cright)
+        layout = QtWidgets.QVBoxLayout()
+        sublayout = QtWidgets.QGridLayout()
+        sublayout_widget = QtWidgets.QWidget()
+        sublayout.addWidget(self.AddrEdit, 1, 0, 1, 2)
+        sublayout.addWidget(self.ConnectButton, 1, 2)
+        sublayout.addWidget(self.TestConnectionButton, 2, 0)
+        sublayout.addWidget(self.StartStopButton, 2, 1)
+        sublayout.addWidget(self.QuitButton, 2, 2)
+        sublayout_widget.setLayout(sublayout)
+        layout.addWidget(self.Console)
+        layout.addWidget(sublayout_widget)
+        self.BottomRightCommandGroupBox.setLayout(layout)
 
-        self.main_widget.setFocus()
-        self.setCentralWidget(self.main_widget)
+    def openVTdevice(self):
+        ipaddr = self.AddrEdit.text()
+        print((ipaddr, 9998))
+        self.datadevice.set_net_addr((ipaddr,9998))
+        self.Console.append('connecting to'+ ipaddr)
+        self.datadevice.open_device()
 
-        self.statusBar().showMessage("All hail matplotlib!", 2000)
+    def testConnection(self):
+        if self.datadevice.open_state == 1:
+            response = self.datadevice.query('hello')
+            if response:
+                self.TestConnectionButton.setStyleSheet('QPushButton {background-color: #01FF53;}')
+        else:
+            self.Console.append('not connected (datadevice.open_state = 0)')
+            self.TestConnectionButton.setStyleSheet('QPushButton {background-color: #FF0000;}')
+
+    def startAcquisition(self):
+        if (self.datadevice.open_state == 1):
+            self.Console.append("Start data acquisition!")
+            self.timer.setInterval(600)
+            self.timer.start()
+            self.StartStopButton.clicked.disconnect(self.startAcquisition)
+            self.StartStopButton.setText("Stop")
+            self.StartStopButton.clicked.connect(self.stopAcquisition)
+        else:
+            self.Console.append("ERROR: Data Device Not Connected.")
+        
+    def stopAcquisition(self):
+        self.Console.append("Stopped!")
+        self.timer.stop()
+        self.StartStopButton.clicked.disconnect(self.stopAcquisition)
+        self.StartStopButton.setText("Start acquisition")
+        self.StartStopButton.clicked.connect(self.startAcquisition)
 
     def fileQuit(self):
-        allchildren = self.main_widget.children()
-        # retreive the MyDynamicMplCanvas object
-        # which contains the VT_Device instance
-        canvs = allchildren[1]
         # close the VT_Device to inform the backend ending the TCP session.
-        canvs.datadevice.close_device()
+        self.datadevice.close_device()
         self.close()
 
     def closeEvent(self, ce):
@@ -165,26 +181,14 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
     def about(self):
         QtWidgets.QMessageBox.about(self, "About",
-        """      GUIMainTest.py
-        Copyright 2019 Nokia Shanghai Bell.
+        """  Fronthaul demo v3.0
         This program is a test script for the Lab604 testbed GUI framework.
+        Currently just for personal practice. Under GPL license.
         Contact: Dongxu Zhang
         Email: dongxu.c.zhang@nokia-sbell.com
         Phone: +8613811230782.""")
 
 
-def extract_samples_int(bin_data):
-    mview = memoryview(bin_data)
-    mview_int8 = mview.cast('b')
-    samples_int = mview_int8.tolist()
-    return samples_int
-
-def channel_filter(raw_iq, start, stop):
-    """ select the subcarriers to draw """
-    clean_iq = raw_iq[start : stop]
-    (N,L) = np.shape(clean_iq)
-    return np.reshape(clean_iq, (N*L,), order='F')
-                
 if __name__ == '__main__':
     # preamble_file_dir = 'D:/PythonScripts/vadatech/vt898/qam16_Apr26.csv'
     preamble_file_dir = './labdevices/0510/qam16_Apr26.csv'
@@ -195,6 +199,9 @@ if __name__ == '__main__':
     
     qApp = QtWidgets.QApplication(sys.argv)
     aw = ApplicationWindow(vt899)
+    
+    # aw.ConnectButton.signal_wraper.click_connect_sgnl.connect(aw.Console.append)
+    
     aw.setWindowTitle("Lab604 GUI test")
     aw.show()
 
