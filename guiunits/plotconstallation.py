@@ -89,7 +89,7 @@ class MyDynamicMplCanvas(MplCanvas):
             re_clbrt = False
         self.update_cnt = self.update_cnt + 1
         print('update figure: {}th time.'.format(self.update_cnt))
-        
+        evm = 1
         if (self.datadevice.open_state == 1):
             response = self.datadevice.query_bin('getdata 28000')
             self.send_console_output('getdata 28000')
@@ -98,6 +98,7 @@ class MyDynamicMplCanvas(MplCanvas):
             print('!!!!!!!!!!!{}'.format(self.datadevice.dmt_demod.symbols_iq_shaped.shape))
             cleanxy = channel_filter(self.datadevice.dmt_demod.symbols_iq_shaped,
                                      _SUB_START, _SUB_STOP)
+            evm = self.datadevice.evm_func(cleanxy, self.datadevice.dmt_demod.qam_level)
         else:
             self.send_console_output('ERROR: data device not opend')
             # raise ValueError('data device has not been opend')
@@ -107,4 +108,5 @@ class MyDynamicMplCanvas(MplCanvas):
         scatter_x = cleanxy.real
         scatter_y = cleanxy.imag
         self.axes.scatter( scatter_x, scatter_y, s=5)
+        self.send_console_output('EVM = {}%'.format(str(evm*100)))
         self.draw()

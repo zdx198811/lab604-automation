@@ -127,7 +127,7 @@ class VT_Device:
 
     def print_commandset(self):
         print(self.args_str_parse.__doc__)
-        self.send_gui_message(self.CommandSet)
+        # self.send_gui_message(str(self.CommandSet))
         return self.CommandSet
 
     def args_str_parse(self, arg_str):

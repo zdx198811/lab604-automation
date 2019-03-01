@@ -37,6 +37,50 @@ def qam64_to_complex(qamdata_dec):
     comp_set = np.array(comp_set_1+comp_set_2+comp_set_3+comp_set_4)/7
     return comp_set[qamdata_dec]
 
+
+def _boundry_compare(x, boundry):
+    if x >= boundry: return (boundry+1)
+    else: return _boundry_compare(x, boundry-2)
+
+def _find_ref(symbl, qam_level):
+    ''' estimate the reference constallation position of a given symbol.
+    The input symbol should be 'scaled' (opsite to regulized) complex number,
+    which means the minimum constallation point starts from (±1±j) and grws
+    by (±2±2j) step.
+    '''
+    if symbl.real == 0: ref_r = 1
+    else: ref_r = np.sign(symbl.real) * _boundry_compare(abs(symbl.real), np.sqrt(qam_level)-2)
+    if symbl.imag == 0: ref_i = 1
+    else: ref_i = np.sign(symbl.imag) * _boundry_compare(abs(symbl.imag), np.sqrt(qam_level)-2)
+    return ref_r + 1j*ref_i
+
+def error_vector_size(x, y):
+    return abs(x-y)
+
+def evm_estimate(qamsignal, qam_level):
+    ''' a simple estimation of the qam signal's evm.
+    It is a blind estimation. Because usually the exact reference signal is
+    not known, while the recovered qam signal can be used to infer its original
+    reference value. Then the evm can be roughly evaluated.
+    
+    Arguments:
+        qamsignal - (X+Yj) which should have been normalized to range (±1±j).
+            typically it is the recovered qam signal with equalization done,
+            where the equalization reference signal is normalized.
+        qam_level - integer
+        
+    Return value:
+        EVM in % format. https://en.wikipedia.org/wiki/Error_vector_magnitude
+    '''
+    if qam_level not in [4, 16, 64, 256]:
+        print('only support qam_level 4, 16, 64')
+        return 0
+    qamsignal_scaled = np.array(qamsignal)*(np.sqrt(qam_level)-1)
+    refsignal = list(map(_find_ref, qamsignal_scaled, [qam_level]*len(qamsignal)))
+    p_error = np.mean(list(map(error_vector_size, qamsignal_scaled, refsignal)))
+    p_ref = np.mean(np.abs(refsignal))
+    evm_estimate = p_error/p_ref
+    return evm_estimate
     
 class DmtCommon:
     """ base class for DMT modulation/demodulation tools 
@@ -263,7 +307,8 @@ class DmtDeMod(DmtCommon):
         __init__ -- 
         update(samples, re_calibrate) -- do the demodulation process. If 
             re_calibrate is set to True, redo correlation @ update equ_coef.
-        _load_preamble(preamble)
+        _load_preamble(preamble) -- given decimal numbers as input, calcuate
+            the post-fft IQ symbols and time domain samples of the preamble. 
     """    
     def __init__(self, samples = [0,0], sample_rate = 1, symbol_rate = 1, 
                  frame_len = 2, qam_level = 4, preamble = None):

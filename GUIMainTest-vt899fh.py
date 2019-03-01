@@ -32,8 +32,8 @@ class mydevice(vt_device.VT_Device):
                                       sample_rate = sample_rate,
                                       qam_level = 16)
         self.dmt_demod.set_preamble(preamble_int)
+        self.evm_func = dmt.evm_estimate
 
-   
 class ApplicationWindow(QtWidgets.QMainWindow):
     def __init__(self, datadevice):
         QtWidgets.QMainWindow.__init__(self)
@@ -146,9 +146,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
     def testConnection(self):
         if self.datadevice.open_state == 1:
-            self.datadevice.query('hello')
+            response = self.datadevice.query('hello')
+            if response:
+                self.TestConnectionButton.setStyleSheet('QPushButton {background-color: #01FF53;}')
         else:
             self.Console.append('not connected (datadevice.open_state = 0)')
+            self.TestConnectionButton.setStyleSheet('QPushButton {background-color: #FF0000;}')
 
     def startAcquisition(self):
         if (self.datadevice.open_state == 1):
@@ -178,9 +181,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
     def about(self):
         QtWidgets.QMessageBox.about(self, "About",
-        """      Fronthaul demo v3.0
-        Copyright 2019 Nokia Shanghai Bell.
+        """  Fronthaul demo v3.0
         This program is a test script for the Lab604 testbed GUI framework.
+        Currently just for personal practice. Under GPL license.
         Contact: Dongxu Zhang
         Email: dongxu.c.zhang@nokia-sbell.com
         Phone: +8613811230782.""")
@@ -198,8 +201,6 @@ if __name__ == '__main__':
     aw = ApplicationWindow(vt899)
     
     # aw.ConnectButton.signal_wraper.click_connect_sgnl.connect(aw.Console.append)
-    
-    
     
     aw.setWindowTitle("Lab604 GUI test")
     aw.show()
