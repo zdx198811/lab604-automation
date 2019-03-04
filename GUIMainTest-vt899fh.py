@@ -80,7 +80,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.StartStopButton.clicked.connect(self.startAcquisition)
         self.TestConnectionButton.clicked.connect(self.testConnection)
         self.QuitButton.clicked.connect(self.closeEvent)
-        self.constellation.consle_output_sgnlwrapper.sgnl.connect(self.Console.append)
+        self.constellation.sgnlwrapper.sgnl.connect(self.Console.append)
+        self.constellation.sgnlwrapper.sgnl_float.connect(self.ledPannelChangeState)
         self.datadevice.qt_gui_sgnlwrapper.sgnl.connect(self.Console.append)
         
         # create the main timer object
@@ -152,6 +153,14 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         else:
             self.Console.append('not connected (datadevice.open_state = 0)')
             self.TestConnectionButton.setStyleSheet('QPushButton {background-color: #FF0000;}')
+
+    def ledPannelChangeState(self, evm):
+        if (evm >= 0.13):
+            self.leds.turn_all_off()
+        elif ((evm >= 0.1) and (evm < 0.13)):
+            self.leds.turn_all_warning()
+        else:
+            self.leds.turn_all_on()
 
     def startAcquisition(self):
         if (self.datadevice.open_state == 1):
