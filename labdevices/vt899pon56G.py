@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Jan. 31 2019
-@author: dongxucz (dongxu.c.zhang@nokia-sbell.com)
+Created on Tue Mar  5 13:34:54 2019
+@author: dongxucz
 Project: 56G PON demo (neural network based equalization)
 
 Discription:
@@ -25,10 +25,10 @@ from core.vt_comm import commandset_pack
 from os import name as os_name
 
 subprocess.run(["pwd"])
-_MMAP_FILE = './labdevices/vt899-fh_mmap_file.bin'
+_MMAP_FILE = './labdevices/vt899-pon56g_mmap_file.bin'
 _RAW_BIN = '/tmp/chan1.bin'
 
-_N_SAMPLE = 28000
+_N_SAMPLE = 393600
 
 CommandSet = {
         'query'    :{'hello'       : 'return hello this is VT899. For testing connectivity'},
@@ -45,12 +45,12 @@ def init(sim_flag):
     Called by the vt_device_backend.py when program starts.
     """
     if sim_flag:  # for simulation, run the fake data capturing
-        subprocess.Popen(["python", "./labdevices/vt899-get-sample-sim.py", "fh"])
+        subprocess.Popen(["python", "./labdevices/vt899-get-sample-sim.py", "pon56g"])
     else:
         subprocess.run(["systemctl", "stop", "firewalld.service"])  # shutdown firewall
         subprocess.run(["/root/1.2.0_R0/tool/amc590tool", "init"])
-        subprocess.Popen(["python", "./labdevices/vt899-get-sample.py", "fh"])
-        
+        subprocess.Popen(["python", "./labdevices/vt899-get-sample.py", "pon56g"])
+
 def handle(command, VT_Handler):
     result = 1 # default value is 1. 
     sock = VT_Handler.request

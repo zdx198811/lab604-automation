@@ -59,6 +59,15 @@ def data_feeder_sim():
         yield (np.array(_all_samples[i % loopcnt][0:20]),
                np.array(_all_samples[(i-1) % loopcnt][0:20]))
 
+def decimate_for_fh_demo(samples_56g):
+    """
+    Because vt899's ADC works at 56GHz sampling rate, while the fronthaul demo
+    assumes 4GHz sampling rate, signal processing (filtering and downsampling)
+    are also done in this module before writing the mmap file.
+    """
+    samples_8g = decimate(samples_56g, 7)  # n=None, ftype='iir', axis=-1, zero_phase=True
+    samples_4g = decimate(samples_8g, 2)
+    return samples_4g
 
 def load_local_sample_files(sample_bin_path):
     global _all_samples
@@ -69,8 +78,7 @@ def load_local_sample_files(sample_bin_path):
             mview = memoryview(bytes_data)
             mview_int8 = mview.cast('b')
             samples_56g = mview_int8.tolist()
-            samples_8g = decimate(samples_56g, 7)  # n=None, ftype='iir', axis=-1, zero_phase=True
-            samples_4g = decimate(samples_8g, 2)
+            samples_4g = decimate_for_fh_demo(samples_56g)
             _all_samples.append(samples_4g)
 
 def norm_to_127_int8(originallist):

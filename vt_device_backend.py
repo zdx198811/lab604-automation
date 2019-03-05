@@ -14,25 +14,33 @@ import argparse
 from socketserver import BaseRequestHandler
 import core.vt_comm as vt_comm
 
-HOST, PORT = "172.24.145.40", 9998         # check this line before running
+HOST, PORT = "172.24.145.24", 9998         # check this line before running
 # HOST, PORT = "192.168.1.4", 9998
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("device", help="the name of current running chassis")
+    parser.add_argument("device", help="the name of current running chassis",
+                        choices = ["vt855", "vt899"])
+    parser.add_argument("app", help="the application to run")
     parser.add_argument("-s", "--sim", help="simulation use",
                         action="store_true")
     args = parser.parse_args()
 
     if args.device == 'vt855':
         import labdevices.vt855 as vtXXX
-    elif args.device == 'vt899fh':  # vt899 as fronthaul backend
-        import labdevices.vt899fh as vtXXX
+    elif args.device == 'vt899':  # vt899 is wrapped as a class
+        from labdevices.vt899 import Vt899
+        vtXXX = Vt899()
     else:
-        raise ValueError('not supported device: {}'.format(args.device))
-    
-    vtXXX.init(args.sim) # start hardware actions, usually capturing samples.
-                         # When args.sim is True, use saved sample files
+        pass
+
+    try:
+        vtXXX.app_init(args.app, args.sim)  # init action for the specific app.
+        # If the app name is not recognized, a ValueError will be raised.
+        # When args.sim is True, use saved sample files.
+    except ValueError as err:
+        print(err)
+        exit(0)
     
     class VT_Handler(BaseRequestHandler):
         """ used by the VT_Comm module when a new connection is requested.
