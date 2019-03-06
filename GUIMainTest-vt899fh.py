@@ -21,7 +21,7 @@ ServerAddr = "172.24.145.24", 9998
 #ServerAddr = "192.168.1.4", 9998
 
 
-class mydevice(vt_device.VT_Device):
+class demo_backend_device(vt_device.VT_Device):
     def __init__(self, devname, addr, preamble_int, frame_len, symbol_rate, sample_rate):
         vt_device.VT_Device.__init__(self, devname)
         self.set_net_addr(addr)
@@ -204,12 +204,11 @@ if __name__ == '__main__':
     with open(preamble_file_dir, 'r') as f_pre_int:
         preamble_int192 = [atoi(item[0]) for item in csvlib.reader(f_pre_int)]
     
-    vt899 = mydevice("vt899", ServerAddr, preamble_int192, 192, 1.5, 4)
+    vt899 = demo_backend_device("vt899", ServerAddr,
+                                preamble_int192, 192, 1.5, 4)
     
     qApp = QtWidgets.QApplication(sys.argv)
     aw = ApplicationWindow(vt899)
-    
-    # aw.ConnectButton.signal_wraper.click_connect_sgnl.connect(aw.Console.append)
     
     aw.setWindowTitle("Lab604 GUI test")
     aw.show()

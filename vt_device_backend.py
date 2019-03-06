@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("device", help="the name of current running chassis",
                         choices = ["vt855", "vt899"])
     parser.add_argument("app", help="the application to run")
-    parser.add_argument("-s", "--sim", help="simulation use",
+    parser.add_argument("-s", "--sim", help="simulation mode",
                         action="store_true")
     args = parser.parse_args()
 

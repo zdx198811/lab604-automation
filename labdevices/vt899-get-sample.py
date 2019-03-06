@@ -4,8 +4,10 @@ Created on Tue Feb 13 2019
 @author: dongxucz (dongxu.c.zhang@nokia-sbell.com)
 
 Description:
-    Aquire data points from ADC and share the data with VT_Device_backend
-    process via memory mapped file.
+    Aquire data points from ADC and share the data with vt_device_backend.py
+    via memory mapped file.
+    This script is intended to be running as a standalone process, together
+    with (actually involked automatically by) the vt_device_backend.py script.
 """
 
 import mmap
@@ -143,7 +145,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("app", type=str, help = "application to run",
                         choices=["fh", "pon56g"])
-    parser.add_argument("-s", "--sim", help="simulation use",
+    parser.add_argument("-s", "--sim", help="simulation mode",
                         action="store_true")
     args = parser.parse_args()
     if args.app == 'fh':
