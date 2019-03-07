@@ -11,6 +11,7 @@ Description:
 """
 
 import mmap
+from time import sleep
 from subprocess import check_output
 from os import getcwd
 import argparse
@@ -147,7 +148,10 @@ if __name__ == '__main__':
                         choices=["fh", "pon56g"])
     parser.add_argument("-s", "--sim", help="simulation mode",
                         action="store_true")
+    parser.add_argument("-p", "--plot", help="plot samples")
     args = parser.parse_args()
+    
+    # Assert the data generator according to the app name
     if args.app == 'fh':
         data_feeder = data_feeder_fh
     elif args.app == 'pon56g':  # vt899 is wrapped as a class
@@ -155,10 +159,17 @@ if __name__ == '__main__':
     else:
         raise ValueError('vt899-get-samples.py -> invalid app name')
     
-    # plot samples periodically
-    scope = ADC_Scope(Scope_axs)
-    ani = animation.FuncAnimation(Scope_figure, scope.update, data_feeder,
-                                  repeat=False, blit=True, interval=900)
+    # Loop over the generator. Plot it or not, according to the `-p` option.
+    if args.plot:  # plot samples periodically
+        scope = ADC_Scope(Scope_axs)
+        ani = animation.FuncAnimation(Scope_figure, scope.update, data_feeder,
+                                      repeat=False, blit=True, interval=100)
+    else:
+        data_generator = data_feeder()
+        for data_slice in data_generator:
+            sleep(0.1)
+            print('updated data: '+str(data_slice[0:3])+' ...')
+    
     plt.show()
     print('finish plotting')
     _m.close()
