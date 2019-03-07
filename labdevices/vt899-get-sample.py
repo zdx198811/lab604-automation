@@ -13,7 +13,7 @@ Description:
 import mmap
 from time import sleep
 from subprocess import check_output
-from os import getcwd
+from os import getcwd, listdir
 import argparse
 import numpy as np
 from scipy.signal import decimate
@@ -22,13 +22,10 @@ from scipy.spatial.distance import correlation  # braycurtis,cosine,canberra,che
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-_SAMPLE_SENT_SIZE = 28000  # 393600/(56/4)
 currdir = getcwd()
 _sample_bin_path = '/tmp/chan1.bin'
+_sample_bin_path_sim = currdir + '/labdevices/0122vt899fh'
 _capture_command = '/root/1.2.0_R0/tool/amc590tool fpga_capture 1 adc now'.split(' ')
-
-_f = open(currdir + '/labdevices/vt899-fh_mmap_file.bin', 'rb+')
-_m = mmap.mmap(_f.fileno(), _SAMPLE_SENT_SIZE,  access=mmap.ACCESS_WRITE)
 
 _fig_nrows = 1
 _fig_ncols = 1
@@ -61,15 +58,7 @@ def adc_capture():
         print(std_out_bytes.decode())
         raise ValueError('vt899-get_sample.py -> ADC capture error!')
 
-def decimate_for_fh_demo(samples_56g):
-    """
-    Because vt899's ADC works at 56GHz sampling rate, while the fronthaul demo
-    assumes 4GHz sampling rate, signal processing (filtering and downsampling)
-    are also done in this module before writing the mmap file.
-    """
-    samples_8g = decimate(samples_56g, 7)  # n=None, ftype='iir', axis=-1, zero_phase=True
-    samples_4g = decimate(samples_8g, 2)
-    return samples_4g
+
 
 def resample_symbols(rx_frame,rx_p_ref, intp_n=10):
     """ This function works around the imperfect-sampling-position problem.
@@ -96,39 +85,76 @@ def resample_symbols(rx_frame,rx_p_ref, intp_n=10):
     rx_resampled = rx_candicate[np.argmin(dist)]
     return rx_resampled
 
-def data_feeder_fh():
-    for i in range(99999):
-        # run the ADC capturing command
-        adc_capture()
+class data_feeder_fh:
+    """ Define the generator, iterating over it to get ADC captured data.
+    This is for the fronthaul demo.
+    """
+    def __init__(self, mmap_file, n_sample, sim_flag):
+        self._m = mmap_file
+        self.n_sample = n_sample
+        if sim_flag:
+            self._all_samples = []
+            self.iterate_fn = self.iterate_fn_sim
+        else:
+            self.iterate_fn = self.iterate_fn_real
         
-        with open(_sample_bin_path, "rb") as f_data:
-            bytes_data = f_data.read()
-            
-        mview = memoryview(bytes_data)
-        mview_int8 = mview.cast('b')
-        samples_56g = mview_int8.tolist()
-        samples_4g = decimate_for_fh_demo(samples_56g)
-        sample_list_norm = norm_to_127_int8(samples_4g[0:_SAMPLE_SENT_SIZE])
-        sample_list_bin = sample_list_norm.tobytes()
-        _m[0:_SAMPLE_SENT_SIZE] = sample_list_bin
-        yield np.array(samples_4g[0:20])
+    def iterate_fn_real(self):
+        """ Use this function as the data generator. """
+        for i in range(99999):
+            # run the ADC capturing command
+            adc_capture()
+            with open(_sample_bin_path, "rb") as f_data:
+                bytes_data = f_data.read()
+            mview = memoryview(bytes_data)
+            mview_int8 = mview.cast('b')
+            samples_56g = mview_int8.tolist()
+            samples_4g = self.decimate_for_fh_demo(samples_56g)
+            sample_list_norm = norm_to_127_int8(samples_4g[0:self.n_sample])
+            sample_list_bin = sample_list_norm.tobytes()
+            self._m[0:self.n_sample] = sample_list_bin
+            yield np.array(samples_4g[0:20])
+    
+    def iterate_fn_sim(self):
+        """ Use this function to simulate the real data generator. """
+        self.load_local_sample_files(_sample_bin_path_sim)
+        _all_samples_bin = []
+        for (idx, sample_list) in enumerate(self._all_samples):
+            sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
+            _all_samples_bin.append(sample_list_norm.tobytes())
+        loopcnt = len(_all_samples_bin)
+        for i in range(99999):
+            # print('the {}th plot '.format(i))
+            self._m[0:self.n_sample] = _all_samples_bin[i % loopcnt]
+            yield np.array(self._all_samples[i % loopcnt][0:20])
 
-def data_feeder_pon56g():
-    for i in range(99999):
-        # run the ADC capturing command
-        adc_capture()
-        
-        with open(_sample_bin_path, "rb") as f_data:
-            bytes_data = f_data.read()
-            
-        mview = memoryview(bytes_data)
-        mview_int8 = mview.cast('b')
-        samples_56g = mview_int8.tolist()
-        samples_4g = decimate_for_fh_demo(samples_56g)
-        sample_list_norm = norm_to_127_int8(samples_4g[0:_SAMPLE_SENT_SIZE])
-        sample_list_bin = sample_list_norm.tobytes()
-        _m[0:_SAMPLE_SENT_SIZE] = sample_list_bin
-        yield np.array(samples_4g[0:20])
+    def load_local_sample_files(self, sample_bin_path):
+        sample_file_list = listdir(sample_bin_path)
+        for filename in sample_file_list:
+            with open(sample_bin_path+'/'+filename, 'rb') as f_data:
+                bytes_data = f_data.read()
+                mview = memoryview(bytes_data)
+                mview_int8 = mview.cast('b')
+                samples_56g = mview_int8.tolist()
+                samples_4g = self.decimate_for_fh_demo(samples_56g)
+                self._all_samples.append(samples_4g)
+
+    def decimate_for_fh_demo(self, samples_56g):
+        """
+        Because vt899's ADC works at 56GHz sampling rate, while the fronthaul demo
+        assumes 4GHz sampling rate, signal processing (filtering and downsampling)
+        are also done in this module before writing the mmap file.
+        """
+        samples_8g = decimate(samples_56g, 7)  # n=None, ftype='iir', axis=-1, zero_phase=True
+        samples_4g = decimate(samples_8g, 2)
+        return samples_4g
+
+class data_feeder_pon56g:
+    """ Define the generator, iterating over it to get ADC captured data.
+        This is for the high-speed PON demo.
+    """
+    pass        
+
+
 
 def norm_to_127_int8(originallist):
     temparray = norm_to_127(originallist)
@@ -148,26 +174,38 @@ if __name__ == '__main__':
                         choices=["fh", "pon56g"])
     parser.add_argument("-s", "--sim", help="simulation mode",
                         action="store_true")
-    parser.add_argument("-p", "--plot", help="plot samples")
+    parser.add_argument("-p", "--plot", help="plot samples",
+                        action="store_true")
     args = parser.parse_args()
+    sim_flag = args.sim
+    app_name = args.app
     
-    # Assert the data generator according to the app name
-    if args.app == 'fh':
-        data_feeder = data_feeder_fh
-    elif args.app == 'pon56g':  # vt899 is wrapped as a class
-        data_feeder = data_feeder_pon56g
+    # Prepare the mmap file
+    _f = open(currdir + '/labdevices/vt899-{}_mmap_file.bin'.format(app_name),
+              'rb+')
+    
+    # build the data generator according to the app name
+    if app_name == 'fh':
+        n_sample = 28000  # 393600/(56/4) see application notes
+        _m = mmap.mmap(_f.fileno(), n_sample,  access=mmap.ACCESS_WRITE)
+        data_feeder = data_feeder_fh(_m, n_sample, sim_flag)
+    elif app_name == 'pon56g':  # vt899 is wrapped as a class
+        n_sample = 196608  # see application notes
+        _m = mmap.mmap(_f.fileno(), n_sample,  access=mmap.ACCESS_WRITE)
+        data_feeder = data_feeder_pon56g(_m, n_sample, sim_flag)
     else:
         raise ValueError('vt899-get-samples.py -> invalid app name')
     
     # Loop over the generator. Plot it or not, according to the `-p` option.
     if args.plot:  # plot samples periodically
         scope = ADC_Scope(Scope_axs)
-        ani = animation.FuncAnimation(Scope_figure, scope.update, data_feeder,
-                                      repeat=False, blit=True, interval=100)
+        ani = animation.FuncAnimation(Scope_figure, scope.update,
+                                      data_feeder.iterate_fn,
+                                      repeat=False, blit=True, interval=700)
     else:
-        data_generator = data_feeder()
+        data_generator = data_feeder.iterate_fn()
         for data_slice in data_generator:
-            sleep(0.1)
+            sleep(0.7)
             print('updated data: '+str(data_slice[0:3])+' ...')
     
     plt.show()

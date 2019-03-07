@@ -24,13 +24,12 @@ from core.vt_comm import commandset_pack
 from os import name as os_name
 
 
-subprocess.run(["pwd"])
+# subprocess.run(["pwd"])
 
 
 class Vt899:
     """ Class wrapper for vt899 chassis
     """
-
     def __init__(self):
         self._MMAP_FILE = './labdevices/vt899-{}_mmap_file.bin'
         self._RAW_BIN = '/tmp/chan1.bin'
@@ -46,36 +45,52 @@ class Vt899:
              # hidden item - 'ComSet' : return the CommandSet.
              # Only used for once when establishing connection.
 
-
     def app_init(self, app_name, sim_flag):
         """ application initialization
         
         Called by the vt_device_backend.py when program starts.
+        
+        sim_flag - if True, means the backend is 'simulated', i.e. not running
+                   on the real device. Because vt899 is essentially a ADC whose
+                   core function is capturing waveforms, its not necessary to 
+                   run the real ADC hardware everytime when debugging the
+                   system, so there are pre-saved waveform data on the disk
+                   which can be used to simulate the ADC's output.
         """
+        # add application-specific commands to the CommandSet
         if app_name == 'fh':
             self._N_SAMPLE = 28000
+            self.CommandSet['query_bin']['getdata {}'.format(self._N_SAMPLE)] = \
+            'return {} symbols (Each symbol has 8bits).'.format(self._N_SAMPLE)
         elif app_name == 'pon56g':
-            self._N_SAMPLE = 393600
+            self._N_SAMPLE = 196608
+            self.CommandSet['query_bin']['getdata {}'.format(self._N_SAMPLE)] = \
+            'return {} symbols (Each symbol has 8bits).'.format(self._N_SAMPLE)
         else:
             raise ValueError('Vt899.app_init() -> app_name not supported')
         
+        # Locate the mmap file. For communication with vt899-get-sample.py
         self._MMAP_FILE = self._MMAP_FILE.format(app_name)
-        self.CommandSet['query_bin']['getdata {}'.format(self._N_SAMPLE)] = \
-            'return {} symbols (Each symbol has 8bits).'.format(self._N_SAMPLE)
 
+        # run the vt899-get-sample.py script.
         if sim_flag:  # for simulation, run the fake data capturing
-            subprocess.Popen(["python", "./labdevices/vt899-get-sample-sim.py", app_name])
+            script_arg = ['-s', '-p']
         else:
-            subprocess.run(["systemctl", "stop", "firewalld.service"])  # shutdown firewall
+            script_arg = []
+            # shutdown firewall and initialize the amc590 ADC card.
+            subprocess.run(["systemctl", "stop", "firewalld.service"])
             subprocess.run(["/root/1.2.0_R0/tool/amc590tool", "init"])
-            subprocess.Popen(["python", "./labdevices/vt899-get-sample.py", app_name])
+        cmd = ["python", "./labdevices/vt899-get-sample.py", app_name]
+        cmd.extend(script_arg)
+        subprocess.Popen(cmd)
 
 
     def handle(self, command, VT_Handler):
         result = 1 # default value is 1. 
         sock = VT_Handler.request
         print(command)
-        if (command == 'ComSet'): # When establishing connection, the client side will query 'CommSet' for once. 
+        # When establishing connection, the client queries 'CommSet' for once.
+        if (command == 'ComSet'):
             result = sock.sendall(commandset_pack(self.CommandSet))
         elif (command == 'hello'):
             result = sock.sendall(bytes(self.hello(),'utf-8'))

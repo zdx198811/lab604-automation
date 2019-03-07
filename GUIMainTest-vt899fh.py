@@ -200,7 +200,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     # preamble_file_dir = 'D:/PythonScripts/vadatech/vt898/qam16_Apr26.csv'
-    preamble_file_dir = './labdevices/0510/qam16_Apr26.csv'
+    preamble_file_dir = './labdevices/0510vt855fh/qam16_Apr26.csv'
     with open(preamble_file_dir, 'r') as f_pre_int:
         preamble_int192 = [atoi(item[0]) for item in csvlib.reader(f_pre_int)]
     
