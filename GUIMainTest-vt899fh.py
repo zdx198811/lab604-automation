@@ -21,7 +21,7 @@ ServerAddr = "172.24.145.24", 9998
 #ServerAddr = "192.168.1.4", 9998
 
 
-class mydevice(vt_device.VT_Device):
+class demo_backend_device(vt_device.VT_Device):
     def __init__(self, devname, addr, preamble_int, frame_len, symbol_rate, sample_rate):
         vt_device.VT_Device.__init__(self, devname)
         self.set_net_addr(addr)
@@ -80,7 +80,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.StartStopButton.clicked.connect(self.startAcquisition)
         self.TestConnectionButton.clicked.connect(self.testConnection)
         self.QuitButton.clicked.connect(self.closeEvent)
-        self.constellation.consle_output_sgnlwrapper.sgnl.connect(self.Console.append)
+        self.constellation.sgnlwrapper.sgnl.connect(self.Console.append)
+        self.constellation.sgnlwrapper.sgnl_float.connect(self.ledPannelChangeState)
         self.datadevice.qt_gui_sgnlwrapper.sgnl.connect(self.Console.append)
         
         # create the main timer object
@@ -153,6 +154,14 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.Console.append('not connected (datadevice.open_state = 0)')
             self.TestConnectionButton.setStyleSheet('QPushButton {background-color: #FF0000;}')
 
+    def ledPannelChangeState(self, evm):
+        if (evm >= 0.13):
+            self.leds.turn_all_off()
+        elif ((evm >= 0.1) and (evm < 0.13)):
+            self.leds.turn_all_warning()
+        else:
+            self.leds.turn_all_on()
+
     def startAcquisition(self):
         if (self.datadevice.open_state == 1):
             self.Console.append("Start data acquisition!")
@@ -191,16 +200,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     # preamble_file_dir = 'D:/PythonScripts/vadatech/vt898/qam16_Apr26.csv'
-    preamble_file_dir = './labdevices/0510/qam16_Apr26.csv'
+    preamble_file_dir = './labdevices/0510vt855fh/qam16_Apr26.csv'
     with open(preamble_file_dir, 'r') as f_pre_int:
         preamble_int192 = [atoi(item[0]) for item in csvlib.reader(f_pre_int)]
     
-    vt899 = mydevice("vt899", ServerAddr, preamble_int192, 192, 1.5, 4)
+    vt899 = demo_backend_device("vt899", ServerAddr,
+                                preamble_int192, 192, 1.5, 4)
     
     qApp = QtWidgets.QApplication(sys.argv)
     aw = ApplicationWindow(vt899)
-    
-    # aw.ConnectButton.signal_wraper.click_connect_sgnl.connect(aw.Console.append)
     
     aw.setWindowTitle("Lab604 GUI test")
     aw.show()

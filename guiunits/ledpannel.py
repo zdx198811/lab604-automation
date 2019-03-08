@@ -29,7 +29,7 @@ class LedPannel(QWidget):
         self.leds = []
         for position, name in zip(positions, names):
             led = QLed(self, on_color=QLed.green, off_color=QLed.red,
-                              build='debug')  # set to 'debug' = enabled.
+                       warning_color=QLed.orange, build='debug')  # set to 'debug' = enabled.
             led.set_shape(QLed.circle)
             led.setText(str(name))
             # led.setFixedSize(80, 50)
@@ -47,7 +47,11 @@ class LedPannel(QWidget):
     def turn_all_off(self):
         for led in self.leds:
             led.turn_off()
-            
+
+    def turn_all_warning(self):
+        for led in self.leds:
+            led.turn_warning()
+
     def revert_all(self):
         for led in self.leds:
             led.revert_status()

@@ -35,12 +35,15 @@ CommandSet = {
                      'getdata 48000'    : 'return 32000 symbols (Each symbol has 12bits). 48KB in total'}
              } # hidden item - 'ComSet' : return the CommandSet. Only used for once when establishing connection. Not visible to frontend user.
 
-def init(sim_flag):
-    if sim_flag:
-        subprocess.Popen(["python", "./labdevices/send_sample_req_sim.py"])
+def app_init(app, sim_flag):
+    if app is in ["fh"]:
+        if sim_flag:
+            subprocess.Popen(["python", "./labdevices/send_sample_req_sim.py"])
+        else:
+            subprocess.Popen(["python", "./labdevices/send_sample_req.py"])
     else:
-        subprocess.Popen(["python", "./labdevices/send_sample_req.py"])
-
+        raise ValueError("vt855 supports application: fh")
+        
 def handle(command, VT_Handler):
     result = 1 # default value is 1. 
     sock = VT_Handler.request

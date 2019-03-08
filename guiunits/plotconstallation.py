@@ -62,6 +62,7 @@ class MyStaticMplCanvas(MplCanvas):
 
 class SigWrapper(QObject):
     sgnl = pyqtSignal(str)
+    sgnl_float = pyqtSignal(float)
 
 class MyDynamicMplCanvas(MplCanvas):
     """A canvas that can update plots with new data from self.datadevice."""
@@ -74,13 +75,16 @@ class MyDynamicMplCanvas(MplCanvas):
         # timer.start(_PLOT_INTERVAL)
         self.update_cnt = 0
         self.draw()
-        self.consle_output_sgnlwrapper = SigWrapper()
+        self.sgnlwrapper = SigWrapper()
         
     def compute_initial_figure(self):
         self.axes.plot([0]*20, 'ro-')
+        
+    def send_evm_value(self, evm):
+        self.sgnlwrapper.sgnl_float.emit(evm)
 
     def send_console_output(self, console_output):
-        self.consle_output_sgnlwrapper.sgnl.emit(console_output)
+        self.sgnlwrapper.sgnl.emit(console_output)
         
     def update_figure(self):
         if (self.update_cnt % _equ_repeat_period) == 0:
@@ -109,4 +113,5 @@ class MyDynamicMplCanvas(MplCanvas):
         scatter_y = cleanxy.imag
         self.axes.scatter( scatter_x, scatter_y, s=5)
         self.send_console_output('EVM = {}%'.format(str(evm*100)))
+        self.send_evm_value(evm)
         self.draw()

@@ -1,4 +1,26 @@
 # -*- coding: utf-8 -*-
+#MIT License
+#
+#Copyright (c) 2018 Jihang Li
+#
+#Permission is hereby granted, free of charge, to any person obtaining a copy
+#of this software and associated documentation files (the "Software"), to deal
+#in the Software without restriction, including without limitation the rights
+#to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#copies of the Software, and to permit persons to whom the Software is
+#furnished to do so, subject to the following conditions:
+#
+#The above copyright notice and this permission notice shall be included in all
+#copies or substantial portions of the Software.
+#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#SOFTWARE.
+
 
 # Python imports
 import numpy as np
@@ -19,7 +41,8 @@ class Led(QPushButton):
     green = np.array([0x01, 0xff, 0x53], dtype=np.uint8)
     orange = np.array([0xff, 0xa5, 0x00], dtype=np.uint8)
     purple = np.array([0xaf, 0x00, 0xff], dtype=np.uint8)
-    red = np.array([0xf4, 0x37, 0x53], dtype=np.uint8)
+    red = np.array([0xff, 0x00, 0x00], dtype=np.uint8)
+    red1 = np.array([0xf4, 0x37, 0x53], dtype=np.uint8)
     yellow = np.array([0xff, 0xff, 0x00], dtype=np.uint8)
 
     capsule = 1
@@ -27,7 +50,7 @@ class Led(QPushButton):
     rectangle = 3
 
     def __init__(self, parent, on_color=green, off_color=black,
-                 shape=rectangle, build='release'):
+                 warning_color=orange, shape=rectangle, build='release'):
         super().__init__()
         if build == 'release':
             self.setDisabled(True)
@@ -48,30 +71,33 @@ class Led(QPushButton):
                                  }}'
         self._on_qss = ''
         self._off_qss = ''
-
-        self._status = False
+        self._warning_qss = ''
+        
+        self._status = 0 # 0-off, 1-on, -1-warning
         self._end_radius = 0
 
         # Properties that will trigger changes on qss.
         self.__on_color = None
         self.__off_color = None
+        self.__warning_color = None
         self.__shape = None
         self.__height = 0
 
         self._on_color = on_color
         self._off_color = off_color
+        self._warning_color = warning_color
         self._shape = shape
         self._height = self.sizeHint().height()
 
-        self.set_status(False)
+        self.set_status(0)
 
     # =================================================== Reimplemented Methods
     def mousePressEvent(self, event):
         QPushButton.mousePressEvent(self, event)
-        if self._status is False:
-            self.set_status(True)
+        if self._status is 0:
+            self.set_status(1)
         else:
-            self.set_status(False)
+            self.set_status(0)
 
     def sizeHint(self):
         # res_w, res_h = pyautogui.size()  # Available resolution geometry
@@ -126,7 +152,20 @@ class Led(QPushButton):
     @_off_color.deleter
     def _off_color(self):
         del self.__off_color
+        
+    @property
+    def _warning_color(self):
+        return self.__warning_color
 
+    @_warning_color.setter
+    def _warning_color(self, color):
+        self.__warning_color = color
+        self._update_warning_qss()
+
+    @_warning_color.deleter
+    def _warning_color(self):
+        del self.__warning_color
+        
     @property
     def _shape(self):
         return self.__shape
@@ -137,6 +176,7 @@ class Led(QPushButton):
         self._update_end_radius()
         self._update_on_qss()
         self._update_off_qss()
+        self._update_warning_qss()
         self.set_status(self._status)
 
     @_shape.deleter
@@ -153,6 +193,7 @@ class Led(QPushButton):
         self._update_end_radius()
         self._update_on_qss()
         self._update_off_qss()
+        self._update_warning_qss()
         self.set_status(self._status)
 
     @_height.deleter
@@ -167,6 +208,10 @@ class Led(QPushButton):
     def _update_off_qss(self):
         color, grad = self._get_gradient(self.__off_color)
         self._off_qss = self._qss.format(self._end_radius, grad, color, color)
+
+    def _update_warning_qss(self):
+        color, grad = self._get_gradient(self.__warning_color)
+        self._warning_qss = self._qss.format(self._end_radius, grad, color, color)
 
     def _get_gradient(self, color):
         grad = ((self.white - color) / 2).astype(np.uint8) + color
@@ -186,40 +231,55 @@ class Led(QPushButton):
     def _toggle_off(self):
         self.setStyleSheet(self._off_qss)
 
+    def _toggle_warning(self):
+        self.setStyleSheet(self._warning_qss)
+
     def set_on_color(self, color):
         self._on_color = color
 
     def set_off_color(self, color):
         self._off_color = color
 
+    def set_warning_color(self, color):
+        self._warning_color = color
+
     def set_shape(self, shape):
         self._shape = shape
 
     def set_status(self, status):
-        self._status = True if status else False
-        if self._status is True:
+        self._status = status
+        if (self._status == 1):     # on
             self._toggle_on()
-        else:
+        elif (self._status == 0):   # off
             self._toggle_off()
+        elif (self._status == -1):  # warning
+            self._toggle_warning()
+        else:
+            pass
 
-    def turn_on(self, status=True):
+    def turn_on(self, status=1):
         self.set_status(status)
 
-    def turn_off(self, status=False):
+    def turn_off(self, status=0):
+        self.set_status(status)
+
+    def turn_warning(self, status=-1):
         self.set_status(status)
 
     def revert_status(self):
-        if self._status:
-            self.set_status(False)
+        if self._status == 1:
+            self.set_status(0)
         else:
-            self.set_status(True)
+            self.set_status(1)
 
     def is_on(self):
-        return True if self._status is True else False
+        return True if self._status is 1 else False
 
     def is_off(self):
-        return True if self._status is False else False
+        return True if self._status is 0 else False
 
+    def is_warning(self):
+        return True if self._status is -1 else False
 
 if __name__ == '__main__':
     from PyQt5.QtCore import Qt
