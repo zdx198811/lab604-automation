@@ -82,14 +82,14 @@ class VT_Device:
         self.send_gui_message(ConnectResult)
         return ConnectResult
 
-    def config(self, command_str):
+    def config(self, command_str,  databytes = b''):
         """ one-way configuration. Send a command with no response expected."""
         if (self.open_state != 1):
             # check if connected. The remote side may have shut down.
             print('Operation failed! Socket not connected.')
         else:
             # return 1 if success
-            self.open_state = self.Comm.send_command(command_str)
+            self.open_state = self.Comm.send_command(command_str, databytes)
 
     def close_device(self):
         """shut local connection and release local socket.

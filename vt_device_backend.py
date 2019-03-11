@@ -63,7 +63,8 @@ if __name__ == "__main__":
             # self.request is the TCP socket connected to the client
             while True:
                 self.data = self.request.recv(vt_comm.VT_CommServer.RCV_CHUNK_SIZE).strip()
-                HandleResult = vtXXX.handle(self.data.decode(), self)
+                # HandleResult = vtXXX.handle(self.data.decode(), self)
+                HandleResult = vtXXX.handle(self.data, self)
                 if HandleResult == -1:  # stop the loop, shutdown this session,
                     print('Session ended.')
                     break             # and wait for another round of connection.

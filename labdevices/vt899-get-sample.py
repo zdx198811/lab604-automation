@@ -24,7 +24,8 @@ import matplotlib.animation as animation
 
 currdir = getcwd()
 _sample_bin_path = '/tmp/chan1.bin'
-_sample_bin_path_sim = currdir + '/labdevices/0122vt899fh'
+_sample_bin_path_sim_fh = currdir + '/labdevices/0122vt899fh'
+_sample_bin_path_sim_pon56g = currdir + '/labdevices/0726vt899pon56g'
 _capture_command = '/root/1.2.0_R0/tool/amc590tool fpga_capture 1 adc now'.split(' ')
 
 _fig_nrows = 1
@@ -57,7 +58,6 @@ def adc_capture():
     else:
         print(std_out_bytes.decode())
         raise ValueError('vt899-get_sample.py -> ADC capture error!')
-
 
 
 def resample_symbols(rx_frame,rx_p_ref, intp_n=10):
@@ -116,7 +116,7 @@ class data_feeder_fh:
     
     def iterate_fn_sim(self):
         """ Use this function to simulate the real data generator. """
-        self.load_local_sample_files(_sample_bin_path_sim)
+        self.load_local_sample_files(_sample_bin_path_sim_fh)
         _all_samples_bin = []
         for (idx, sample_list) in enumerate(self._all_samples):
             sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
@@ -152,9 +152,52 @@ class data_feeder_pon56g:
     """ Define the generator, iterating over it to get ADC captured data.
         This is for the high-speed PON demo.
     """
-    pass        
+    def __init__(self, mmap_file, n_sample, sim_flag):
+        self._m = mmap_file
+        self.n_sample = n_sample
+        if sim_flag:
+            self._all_samples = []
+            self.iterate_fn = self.iterate_fn_sim
+        else:
+            self.iterate_fn = self.iterate_fn_real
+        
+    def iterate_fn_real(self):
+        """ Use this function as the data generator. """
+        for i in range(99999):
+            # run the ADC capturing command
+            adc_capture()
+            with open(_sample_bin_path, "rb") as f_data:
+                bytes_data = f_data.read()
+            mview = memoryview(bytes_data)
+            mview_int8 = mview.cast('b')
+            samples_56g = mview_int8.tolist()
+            sample_list_norm = norm_to_127_int8(samples_56g[0:self.n_sample])
+            sample_list_bin = sample_list_norm.tobytes()
+            self._m[0:self.n_sample] = sample_list_bin
+            yield np.array(samples_56g[0:20])
+    
+    def iterate_fn_sim(self):
+        """ Use this function to simulate the real data generator. """
+        self.load_local_sample_files(_sample_bin_path_sim_pon56g)
+        _all_samples_bin = []
+        for (idx, sample_list) in enumerate(self._all_samples):
+            sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
+            _all_samples_bin.append(sample_list_norm.tobytes())
+        loopcnt = len(_all_samples_bin)
+        for i in range(99999):
+            # print('the {}th plot '.format(i))
+            self._m[0:self.n_sample] = _all_samples_bin[i % loopcnt]
+            yield np.array(self._all_samples[i % loopcnt][0:20])
 
-
+    def load_local_sample_files(self, sample_bin_path):
+        sample_file_list = listdir(sample_bin_path)
+        for filename in sample_file_list:
+            with open(sample_bin_path+'/'+filename, 'rb') as f_data:
+                bytes_data = f_data.read()
+                mview = memoryview(bytes_data)
+                mview_int8 = mview.cast('b')
+                samples_56g = mview_int8.tolist()
+                self._all_samples.append(samples_56g)
 
 def norm_to_127_int8(originallist):
     temparray = norm_to_127(originallist)
@@ -190,7 +233,7 @@ if __name__ == '__main__':
         _m = mmap.mmap(_f.fileno(), n_sample,  access=mmap.ACCESS_WRITE)
         data_feeder = data_feeder_fh(_m, n_sample, sim_flag)
     elif app_name == 'pon56g':  # vt899 is wrapped as a class
-        n_sample = 196608  # see application notes
+        n_sample = 393600  # see application notes
         _m = mmap.mmap(_f.fileno(), n_sample,  access=mmap.ACCESS_WRITE)
         data_feeder = data_feeder_pon56g(_m, n_sample, sim_flag)
     else:
@@ -202,13 +245,13 @@ if __name__ == '__main__':
         ani = animation.FuncAnimation(Scope_figure, scope.update,
                                       data_feeder.iterate_fn,
                                       repeat=False, blit=True, interval=700)
+        plt.show()
     else:
         data_generator = data_feeder.iterate_fn()
         for data_slice in data_generator:
             sleep(0.7)
             print('updated data: '+str(data_slice[0:3])+' ...')
     
-    plt.show()
     print('finish plotting')
     _m.close()
     _f.close()
