@@ -128,17 +128,23 @@ class VT_Device:
     def print_commandset(self):
         print(self.args_str_parse.__doc__)
         # self.send_gui_message(str(self.CommandSet))
+        for category in self.CommandSet:
+            print('\n\n{} Commands:'.format(category))
+            for cmd in self.CommandSet[category]:
+                print('\n    {}:\n        {}'.format(cmd, self.CommandSet[category][cmd]))
         return self.CommandSet
 
     def args_str_parse(self, arg_str):
         """
-        VT_device's query commands may be in one of the following form:
-            form 1: 'COMMAND'
-            form 2: 'COMMAND VALUE'
-        The first applies to scenarios that the length of response is unknown,
-        which typically is a simple status reading that returns a short string.
-        The second form is for situations with explicit expectation of returned
-        length (bytes), such as capturing a bunch of data.
+        VT_device's query commands may be in one of the following syntax:
+            Syntax 1: 'COMMAND'
+            Syntax 2: 'COMMAND VALUE'
+        The first applies to scenarios that the length of response is\
+        unknown, which typically is a simple status reading that returns a\
+        short string. The second form has two sub-situations: one is for\
+        commands with explicit expectation of returned length (bytes), such as\
+        capturing (query) a certain amount of data, the other situation is to\
+        send (config) a certain amount of data to the device .
         """
         arg_split = arg_str.split()
         if (len(arg_split) == 2):

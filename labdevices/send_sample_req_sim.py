@@ -54,12 +54,12 @@ def data_feeder_sim():
     global _all_samples_bin
     loopcnt = len(_all_samples_bin)
     for i in range(99999):
-        # print('the {}th plot '.format(i))
+        print('the {}th plot '.format(i))
         if i % 2 == 0:
             _m[0:24000] = _all_samples_bin[i % loopcnt]
         else:
             _m[24000:48000] = _all_samples_bin[i % loopcnt]
-        # print('yield data', list(_m[0:20]))
+        print('yield data', list(_m[0:20]))
         yield (np.array(_all_samples[i % loopcnt][0:20]),
                np.array(_all_samples[(i-1) % loopcnt][0:20]))
 

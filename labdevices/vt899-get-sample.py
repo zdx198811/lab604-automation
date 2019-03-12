@@ -128,7 +128,7 @@ class data_feeder_fh:
             yield np.array(self._all_samples[i % loopcnt][0:20])
 
     def load_local_sample_files(self, sample_bin_path):
-        sample_file_list = listdir(sample_bin_path)
+        sample_file_list = [item for item in listdir(sample_bin_path) if item[-3:]=='bin']
         for filename in sample_file_list:
             with open(sample_bin_path+'/'+filename, 'rb') as f_data:
                 bytes_data = f_data.read()
@@ -157,11 +157,11 @@ class data_feeder_pon56g:
         self.n_sample = n_sample
         if sim_flag:
             self._all_samples = []
-            self.iterate_fn = self.iterate_fn_sim
+            self.iterate_fn = self.iterate_pon56g_sim
         else:
-            self.iterate_fn = self.iterate_fn_real
+            self.iterate_fn = self.iterate_pon56g_real
         
-    def iterate_fn_real(self):
+    def iterate_pon56g_real(self):
         """ Use this function as the data generator. """
         for i in range(99999):
             # run the ADC capturing command
@@ -176,10 +176,12 @@ class data_feeder_pon56g:
             self._m[0:self.n_sample] = sample_list_bin
             yield np.array(samples_56g[0:20])
     
-    def iterate_fn_sim(self):
+    def iterate_pon56g_sim(self):
         """ Use this function to simulate the real data generator. """
+        # print('inside iterate')
         self.load_local_sample_files(_sample_bin_path_sim_pon56g)
         _all_samples_bin = []
+        # print('all_samples loaded')
         for (idx, sample_list) in enumerate(self._all_samples):
             sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
             _all_samples_bin.append(sample_list_norm.tobytes())
@@ -190,7 +192,7 @@ class data_feeder_pon56g:
             yield np.array(self._all_samples[i % loopcnt][0:20])
 
     def load_local_sample_files(self, sample_bin_path):
-        sample_file_list = listdir(sample_bin_path)
+        sample_file_list = [item for item in listdir(sample_bin_path) if item[-3:]=='bin']
         for filename in sample_file_list:
             with open(sample_bin_path+'/'+filename, 'rb') as f_data:
                 bytes_data = f_data.read()
@@ -221,6 +223,7 @@ if __name__ == '__main__':
                         action="store_true")
     args = parser.parse_args()
     sim_flag = args.sim
+    plot_flag = args.plot
     app_name = args.app
     
     # Prepare the mmap file
@@ -240,7 +243,7 @@ if __name__ == '__main__':
         raise ValueError('vt899-get-samples.py -> invalid app name')
     
     # Loop over the generator. Plot it or not, according to the `-p` option.
-    if args.plot:  # plot samples periodically
+    if plot_flag:  # plot samples periodically
         scope = ADC_Scope(Scope_axs)
         ani = animation.FuncAnimation(Scope_figure, scope.update,
                                       data_feeder.iterate_fn,
