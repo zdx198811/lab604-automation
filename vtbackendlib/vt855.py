@@ -22,7 +22,7 @@ from core.vt_comm import commandset_pack
 from os import name as os_name
 
 subprocess.run(["pwd"])
-_MMAP_FILE = './labdevices/vt855_mmap_file.bin'
+_MMAP_FILE = './vtbackendlib/vt855_mmap_file.bin'
 
 
 CommandSet = {
@@ -38,9 +38,9 @@ CommandSet = {
 def app_init(app, sim_flag):
     if app is in ["fh"]:
         if sim_flag:
-            subprocess.Popen(["python", "./labdevices/send_sample_req_sim.py"])
+            subprocess.Popen(["python", "./vtbackendlib/send_sample_req_sim.py"])
         else:
-            subprocess.Popen(["python", "./labdevices/send_sample_req.py"])
+            subprocess.Popen(["python", "./vtbackendlib/send_sample_req.py"])
     else:
         raise ValueError("vt855 supports application: fh")
         

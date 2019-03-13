@@ -27,9 +27,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.device == 'vt855':
-        import labdevices.vt855 as vtXXX
+        import vtbackendlib.vt855 as vtXXX
     elif args.device == 'vt899':  # vt899 is wrapped as a class
-        from labdevices.vt899 import Vt899
+        from vtbackendlib.vt899 import Vt899
         vtXXX = Vt899()
     else:
         pass
@@ -63,7 +63,8 @@ if __name__ == "__main__":
             # self.request is the TCP socket connected to the client
             while True:
                 self.data = self.request.recv(vt_comm.VT_CommServer.RCV_CHUNK_SIZE).strip()
-                HandleResult = vtXXX.handle(self.data.decode(), self)
+                # HandleResult = vtXXX.handle(self.data.decode(), self)
+                HandleResult = vtXXX.handle(self.data, self)
                 if HandleResult == -1:  # stop the loop, shutdown this session,
                     print('Session ended.')
                     break             # and wait for another round of connection.

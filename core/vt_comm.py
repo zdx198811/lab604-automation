@@ -115,7 +115,7 @@ class VT_CommClient(VT_Comm):
 
 
 
-    def send_command(self, command_str):
+    def send_command(self, command_str, databytes = b''):
         """ send command to be remotely executed and return an integer.
 
         Return value:
@@ -123,7 +123,12 @@ class VT_CommClient(VT_Comm):
         -1 -- remote execution fail. Typically because the TCP session failure.
         """
         try:
-            self.sock.sendall(bytes(command_str+"\n", "utf-8"))
+            if databytes:
+                bytes_to_send = bytes(command_str, "utf-8") + databytes +\
+                                bytes("\n", "utf-8")
+            else:
+                bytes_to_send = bytes(command_str+"\n", "utf-8")
+            self.sock.sendall(bytes_to_send)
             return 1
         except ConnectionAbortedError as err:
             print(type(err), str(err))

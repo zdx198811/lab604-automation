@@ -8,13 +8,9 @@ Change log:
 """
 
 __version__ = '0.0.1'
-from PyQt5.QtCore import pyqtSignal, QObject
-from . import vt_comm
+from core import vt_comm
+from core.msg_buf import MessageBuf
 
-
-class SigWrapper(QObject):
-    sgnl = pyqtSignal(str)
-    
     
 class VT_Device:
     """ the father class of all Vadatech devices (for GUI frontend).
@@ -31,6 +27,7 @@ class VT_Device:
         CommandSet - a dict describing all supported commands.
         Comm - VT_CommClient object. the communication module.
         net_addr - network address of the remote backend.
+        msgbf - stor messages and send messages to GUI
 
     Methods:
         set_net_addr(ipaddr, tcpport) - set the remote backend IP
@@ -38,7 +35,6 @@ class VT_Device:
         config() - write message to the backend
         query() - retrieve data from the backend
         print_commandset() - print out all the CommandSet
-        send_gui_message() - send a string (emit signal) to the GUI (qt slot)
     """
     # class variables shared by all instances:
 
@@ -53,10 +49,8 @@ class VT_Device:
         # new VT_Comm subclass and then overide this
         # class variable when instantiate VT_Device objects.
         self.net_addr = ("localhost", 9997)
-        self.qt_gui_sgnlwrapper = SigWrapper()
-
-    def send_gui_message(self, msg):
-        self.qt_gui_sgnlwrapper.sgnl.emit(msg)
+        self.msgbf = MessageBuf(100, msg_src=dev_name)
+        self.guisgnl = self.msgbf._sgnl_wrapper.msg_sgnl
 
     def set_net_addr(self, addrtuple):
         """ example: ipaddr = "192.168.56.101", tcpport = 9997 """
@@ -79,17 +73,17 @@ class VT_Device:
                 (self.open_state, response) = self.Comm.query('ComSet')
                 if (self.open_state == 1):
                     self.CommandSet = vt_comm.commandset_unpack(response)
-        self.send_gui_message(ConnectResult)
+        self.msgbf.info(ConnectResult)
         return ConnectResult
 
-    def config(self, command_str):
+    def config(self, command_str,  databytes = b''):
         """ one-way configuration. Send a command with no response expected."""
         if (self.open_state != 1):
             # check if connected. The remote side may have shut down.
-            print('Operation failed! Socket not connected.')
+            self.msgbf.warning('Operation failed! Socket not connected.')
         else:
             # return 1 if success
-            self.open_state = self.Comm.send_command(command_str)
+            self.open_state = self.Comm.send_command(command_str, databytes)
 
     def close_device(self):
         """shut local connection and release local socket.
@@ -98,27 +92,25 @@ class VT_Device:
         to close the session.
         """
         if self.open_state == 0:
-            self.send_gui_message('Not in open state!')
-            print('Not in open state!')
+            self.msgbf.warning('Not in open state!')
         else:
             if self.open_state == 1:
                 self.config('CloseConnection')
             self.Comm.close_connection()
             self.open_state = 0
-            self.send_gui_message('Device closed.')
-            print('Device closed.')
+            self.msgbf.info('Device closed.')
 
     def query(self, arg_str):
         """ Send a command, then return a string from the remote backend. """
         response = self.query_bin(arg_str)
         response_str = response.decode()
-        self.send_gui_message(response_str)
+        self.msgbf.info(response_str)
         return response_str
 
     def query_bin(self, arg_str):
         """ Send a command, then return a bytearray from the remote backend."""
         if (self.open_state != 1):  # check if connected.
-            print('Operation failed! Socket not connected.')
+            self.msgbf.warning('Operation failed! Socket not connected.')
             return b''
         else:
             len_return = self.args_str_parse(arg_str)
@@ -126,19 +118,24 @@ class VT_Device:
             return response
 
     def print_commandset(self):
-        print(self.args_str_parse.__doc__)
-        # self.send_gui_message(str(self.CommandSet))
+        self.msgbf.info(self.args_str_parse.__doc__)
+        for category in self.CommandSet:
+            print('\n\n{} Commands:'.format(category))
+            for cmd in self.CommandSet[category]:
+                print('\n    {}:\n        {}'.format(cmd, self.CommandSet[category][cmd]))
         return self.CommandSet
 
     def args_str_parse(self, arg_str):
         """
-        VT_device's query commands may be in one of the following form:
-            form 1: 'COMMAND'
-            form 2: 'COMMAND VALUE'
-        The first applies to scenarios that the length of response is unknown,
-        which typically is a simple status reading that returns a short string.
-        The second form is for situations with explicit expectation of returned
-        length (bytes), such as capturing a bunch of data.
+        VT_device's query commands may be in one of the following syntax:
+            Syntax 1: 'COMMAND'
+            Syntax 2: 'COMMAND VALUE'
+        The first applies to scenarios that the length of response is\
+        unknown, which typically is a simple status reading that returns a\
+        short string. The second form has two sub-situations: one is for\
+        commands with explicit expectation of returned length (bytes), such as\
+        capturing (query) a certain amount of data, the other situation is to\
+        send (config) a certain amount of data to the device .
         """
         arg_split = arg_str.split()
         if (len(arg_split) == 2):

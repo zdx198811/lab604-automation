@@ -22,10 +22,10 @@ _RAW_BIN = '/tmp/chan1.bin'
 _N_SAMPLE = 28114  # 393600/(56/4)
 
 currdir = getcwd()
-_sample_csv_path = currdir + '/labdevices/0510vt855fh'
+_sample_csv_path = currdir + '/vtbackendlib/0510vt855fh'
 _all_samples = []
 _all_samples_bin = []
-_f = open(currdir + '/labdevices/vt855_mmap_file.bin', 'rb+')
+_f = open(currdir + '/vtbackendlib/vt855_mmap_file.bin', 'rb+')
 _m = mmap.mmap(_f.fileno(), 48000,  access=mmap.ACCESS_WRITE)
 
 _fig_nrows = 1
@@ -54,12 +54,12 @@ def data_feeder_sim():
     global _all_samples_bin
     loopcnt = len(_all_samples_bin)
     for i in range(99999):
-        # print('the {}th plot '.format(i))
+        print('the {}th plot '.format(i))
         if i % 2 == 0:
             _m[0:24000] = _all_samples_bin[i % loopcnt]
         else:
             _m[24000:48000] = _all_samples_bin[i % loopcnt]
-        # print('yield data', list(_m[0:20]))
+        print('yield data', list(_m[0:20]))
         yield (np.array(_all_samples[i % loopcnt][0:20]),
                np.array(_all_samples[(i-1) % loopcnt][0:20]))
 
