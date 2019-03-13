@@ -27,9 +27,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.device == 'vt855':
-        import labdevices.vt855 as vtXXX
+        import vtbackendlib.vt855 as vtXXX
     elif args.device == 'vt899':  # vt899 is wrapped as a class
-        from labdevices.vt899 import Vt899
+        from vtbackendlib.vt899 import Vt899
         vtXXX = Vt899()
     else:
         pass

@@ -22,10 +22,10 @@ _RAW_BIN = '/tmp/chan1.bin'
 _N_SAMPLE = 28114  # 393600/(56/4)
 
 currdir = getcwd()
-_sample_csv_path = currdir + '/labdevices/0510vt855fh'
+_sample_csv_path = currdir + '/vtbackendlib/0510vt855fh'
 _all_samples = []
 _all_samples_bin = []
-_f = open(currdir + '/labdevices/vt855_mmap_file.bin', 'rb+')
+_f = open(currdir + '/vtbackendlib/vt855_mmap_file.bin', 'rb+')
 _m = mmap.mmap(_f.fileno(), 48000,  access=mmap.ACCESS_WRITE)
 
 _fig_nrows = 1

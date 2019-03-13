@@ -82,7 +82,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.QuitButton.clicked.connect(self.closeEvent)
         self.constellation.sgnlwrapper.sgnl.connect(self.Console.append)
         self.constellation.sgnlwrapper.sgnl_float.connect(self.ledPannelChangeState)
-        self.datadevice.qt_gui_sgnlwrapper.sgnl.connect(self.Console.append)
+        self.datadevice.guisgnl.connect(self.Console.append)
         
         # create the main timer object
         self.timer = QtCore.QTimer(self)
@@ -192,7 +192,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         QtWidgets.QMessageBox.about(self, "About",
         """  Fronthaul demo v3.0
         This program is a test script for the Lab604 testbed GUI framework.
-        Currently just for personal practice. Under GPL license.
+        Currently just for personal practice. Under MIT license.
         Contact: Dongxu Zhang
         Email: dongxu.c.zhang@nokia-sbell.com
         Phone: +8613811230782.""")
@@ -200,7 +200,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     # preamble_file_dir = 'D:/PythonScripts/vadatech/vt898/qam16_Apr26.csv'
-    preamble_file_dir = './labdevices/0510vt855fh/qam16_Apr26.csv'
+    preamble_file_dir = './vtbackendlib/0510vt855fh/qam16_Apr26.csv'
     with open(preamble_file_dir, 'r') as f_pre_int:
         preamble_int192 = [atoi(item[0]) for item in csvlib.reader(f_pre_int)]
     

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Mar 12 10:53:44 2019
-
+Description:
+    The GUI app for 56G PON demo. For more information, refer to the 
+    corresponding application note in the `lab604-automation` documentation.
 @author: dongxucz
 """
-
 
 import sys
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -14,9 +15,10 @@ import numpy as np
 import core.vt_device as vt_device
 from core.ook_lib import OOK_signal
 import matplotlib.pyplot as plt
+from core.ks_device import M8195A
 
-ServerAddr = "172.24.145.24", 9998
-current_folder = 'D:\\PythonScripts\\lab604-automation\\labdevices\\0726vt899pon56g\\'
+VT899Addr = "172.24.145.24", 9998
+current_folder = 'D:\\PythonScripts\\lab604-automation\\vtbackendlib\\0726vt899pon56g\\'
 
 class pon56g_backend_device(vt_device.VT_Device):
     def __init__(self, devname, addr, preamble_int, frame_len, symbol_rate):
@@ -33,17 +35,17 @@ class pon56g_backend_device(vt_device.VT_Device):
 
 
 ook_preamble = OOK_signal(load_file= current_folder+'Jul 6_1741preamble.csv')
-vt899 = pon56g_backend_device("vt899pondemo", ServerAddr,
+vt899 = pon56g_backend_device("vt899pondemo", VT899Addr,
                             ook_preamble.nrz(), 196608, 56)
 vt899.open_device()
 vt899.print_commandset()
 vt899.query('hello')
-asdf = ook_preamble.nrz(dtype = 'int8')
 
-vt899.config('Update prmbl', asdf.tobytes())
+asdf = ook_preamble.nrz(dtype = 'int8')
+vt899.config('prmbl500', asdf.tobytes())
 ref_bin = vt899.query_bin('getRef 2000')
 vt899.preamble_wave = np.array(memoryview(ref_bin).cast('f').tolist())
-
+#
 #ookref = vt899.preamble_int*80
 #plt.plot(ookref[0:20], 'ro-')
 #plt.plot(vt899.preamble_wave[0:20], 'b*-')

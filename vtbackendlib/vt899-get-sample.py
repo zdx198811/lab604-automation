@@ -24,8 +24,8 @@ import matplotlib.animation as animation
 
 currdir = getcwd()
 _sample_bin_path = '/tmp/chan1.bin'
-_sample_bin_path_sim_fh = currdir + '/labdevices/0122vt899fh'
-_sample_bin_path_sim_pon56g = currdir + '/labdevices/0726vt899pon56g'
+_sample_bin_path_sim_fh = currdir + '/vtbackendlib/0122vt899fh'
+_sample_bin_path_sim_pon56g = currdir + '/vtbackendlib/0726vt899pon56g'
 _capture_command = '/root/1.2.0_R0/tool/amc590tool fpga_capture 1 adc now'.split(' ')
 
 _fig_nrows = 1
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     app_name = args.app
     
     # Prepare the mmap file
-    _f = open(currdir + '/labdevices/vt899-{}_mmap_file.bin'.format(app_name),
+    _f = open(currdir + '/vtbackendlib/vt899-{}_mmap_file.bin'.format(app_name),
               'rb+')
     
     # build the data generator according to the app name
