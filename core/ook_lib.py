@@ -62,6 +62,13 @@ class OOK_signal:
                     self.data_bits = np.sign([np.max((0,item)) for item in data_ref[0:data_len]])
                     self.data_len = data_len
     def append(self, a):
+        """ Append more data to the data_bits
+        
+        Arguments:
+            a - can be another OOK_signal, or an 1d numpy array, or a list.
+                Note that range of a's contents is not limited. Negtive values
+                will be interprated as 0, positive as 1.
+        """
         #print(a.__class__, self.__class__)
         if (a.__class__ == np.ndarray or a.__class__ == list):
             a_ook = np.sign([np.max((0,item)) for item in a])
@@ -70,7 +77,17 @@ class OOK_signal:
             a_ook = a.data_bits
         self.data_bits = np.concatenate((self.data_bits, a_ook),axis=0)
         self.data_len = len(self.data_bits)
+    
+    def slicer(self, s):
+        """ Output a slice of the data_bits
         
+        Arguments:
+            s - slice object. Example: OOK_signal.slicer(slice(0,10,2)) will
+                output a numpy array containing OOK_signal's data_bits[0, 2, 
+                4, 6, 8] elements.
+        """
+        return self.data_bits[s]
+    
     def nrz(self, dtype = int):
         temp_array = np.sign( self.data_bits - 0.5 )
         return temp_array.astype(dtype)
