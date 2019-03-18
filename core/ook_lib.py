@@ -9,7 +9,7 @@ import numpy as np
 import csv as csvlib
 from locale import atoi
 from os.path import exists
-from torch.utils.data import Dataset
+# from torch.utils.data import Dataset
 
 class OOK_signal:
     """Create (randomly generate|load from file) or save an OOK signal.
@@ -35,10 +35,9 @@ class OOK_signal:
                 if (load_file[-3:]!='csv'):
                     raise ValueError('OOK_signal: only .csv is supported')
                 else:
-                    f = open(load_file, 'r')
-                    #self.data_bits=np.array([atoi(item[0]) for item in csvlib.reader(f)])
-                    self.data_bits=np.sign([np.max((0,atoi(item[0]))) for item in csvlib.reader(f)])
-                    f.close()
+                    with open(load_file, 'r') as f:
+                        #self.data_bits=np.array([atoi(item[0]) for item in csvlib.reader(f)])
+                        self.data_bits=np.sign([np.max((0,atoi(item[0]))) for item in csvlib.reader(f)])
                     if (data_len==0)|((data_len!=0)&(data_len>len(self.data_bits))):
                         self.data_len = len(self.data_bits)
                         if data_len!=0:
@@ -78,8 +77,8 @@ class OOK_signal:
         self.data_bits = np.concatenate((self.data_bits, a_ook),axis=0)
         self.data_len = len(self.data_bits)
     
-    def slicer(self, s):
-        """ Output a slice of the data_bits
+    def take(self, s):
+        """ take a slice out of the data_bits
         
         Arguments:
             s - slice object. Example: OOK_signal.slicer(slice(0,10,2)) will
@@ -104,52 +103,52 @@ class OOK_signal:
                 writer = csvlib.writer(f)
                 for item in self.data_bits:
                     writer.writerow([item])
-            f.close()
+
             
-class nn_pd_dataset(Dataset):
-    """the customized data reader for Pytorch's DataLoader utility.
-       Inherited from the abstract class 'Dataset' with overided __len__()
-       and __getitem__() methods. Takes padas dataset as inputs.
-    """
-    def __init__(self, pd_dataframe_x, pd_dataframe_y, transform=None):
-        """
-        Args:
-            pd_dataframe_x/y, pandas dataframe of feature/label.
-        """
-        self.pd_dataframe_x = pd_dataframe_x
-        self.pd_dataframe_y = pd_dataframe_y
-        self.transform = transform
-        
-    def __len__(self):
-        return self.pd_dataframe_x.shape[0]
-
-    def __getitem__(self, idx):
-        sample = {'features':self.pd_dataframe_x.iloc[idx].get_values(), 
-                  'labels':self.pd_dataframe_y.iloc[idx]}
-        return sample
-    getitem = __getitem__
-    n_sample = __len__
-    
-class nn_ndarray_dataset(Dataset):
-    """the customized data reader for Pytorch's DataLoader utility.
-       Inherited from the abstract class 'Dataset' with overided __len__()
-       and __getitem__() methods. Takes ndarray as inputs.
-    """
-    def __init__(self, dataframe_x, dataframe_y, transform=None):
-        """
-        Args:
-            pd_dataframe_x/y, pandas dataframe of feature/label.
-        """
-        self.dataframe_x = dataframe_x
-        self.dataframe_y = dataframe_y
-        self.transform = transform
-        
-    def __len__(self):
-        return self.dataframe_x.shape[0]
-
-    def __getitem__(self, idx):
-        sample = {'features':self.dataframe_x[idx], 
-                  'labels':self.dataframe_y[idx]}
-        return sample
-    getitem = __getitem__
-    n_sample = __len__
+#class nn_pd_dataset(Dataset):
+#    """the customized data reader for Pytorch's DataLoader utility.
+#       Inherited from the abstract class 'Dataset' with overided __len__()
+#       and __getitem__() methods. Takes padas dataset as inputs.
+#    """
+#    def __init__(self, pd_dataframe_x, pd_dataframe_y, transform=None):
+#        """
+#        Args:
+#            pd_dataframe_x/y, pandas dataframe of feature/label.
+#        """
+#        self.pd_dataframe_x = pd_dataframe_x
+#        self.pd_dataframe_y = pd_dataframe_y
+#        self.transform = transform
+#        
+#    def __len__(self):
+#        return self.pd_dataframe_x.shape[0]
+#
+#    def __getitem__(self, idx):
+#        sample = {'features':self.pd_dataframe_x.iloc[idx].get_values(), 
+#                  'labels':self.pd_dataframe_y.iloc[idx]}
+#        return sample
+#    getitem = __getitem__
+#    n_sample = __len__
+#    
+#class nn_ndarray_dataset(Dataset):
+#    """the customized data reader for Pytorch's DataLoader utility.
+#       Inherited from the abstract class 'Dataset' with overided __len__()
+#       and __getitem__() methods. Takes ndarray as inputs.
+#    """
+#    def __init__(self, dataframe_x, dataframe_y, transform=None):
+#        """
+#        Args:
+#            pd_dataframe_x/y, pandas dataframe of feature/label.
+#        """
+#        self.dataframe_x = dataframe_x
+#        self.dataframe_y = dataframe_y
+#        self.transform = transform
+#        
+#    def __len__(self):
+#        return self.dataframe_x.shape[0]
+#
+#    def __getitem__(self, idx):
+#        sample = {'features':self.dataframe_x[idx], 
+#                  'labels':self.dataframe_y[idx]}
+#        return sample
+#    getitem = __getitem__
+#    n_sample = __len__

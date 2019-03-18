@@ -24,7 +24,8 @@ import array
 from core.vt_comm import commandset_pack
 from os import name as os_name
 import numpy as np
-
+from scipy import interpolate
+from scipy.spatial.distance import correlation
 
 # subprocess.run(["pwd"])
 
@@ -79,6 +80,8 @@ class Vt899:
             precision floting points data (2000 bytes in total)'
             self.CommandSet['query_bin']['getCorr 1570404'] = \
             'Get corr_result_list. For debugging use.'
+            self.CommandSet['query_bin']['getFrame 786432'] = \
+            'Get re-sampled frame. 196608 samples (4 bytes per sample).'
         else:
             raise ValueError('Vt899.app_init() -> app_name not supported')
         
@@ -147,6 +150,22 @@ class Vt899:
             else:
                 print('Warning: corr_result is not present!')
                 result = sock.sendall(b'Corr_result is not available.')
+        elif (command == 'getFrame 786432'):
+            if hasattr(self, 'prmbl_int'):  # make sure Prmbl was updated
+                with open(self._MMAP_FILE, 'r') as f:
+                    with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as m:
+                        samples_all_bin = m[0:self._N_SAMPLE]
+                samples_all = np.array(memoryview(samples_all_bin).cast('b').tolist())
+                (samples_frame, corr_result) = extract_frame(samples_all,
+                                                             self._N_SAMPLE_FRAME,
+                                                             self.prmbl_int)
+                resampled_frame = resample_symbols(samples_frame,
+                                                   rx_p_ref=self.rx_p_ref)
+                tosend = resampled_frame.astype('float32')
+                result = sock.sendall(tosend.tobytes())
+            else:
+                print('Warning: pramnble is not present!')
+                result = sock.sendall(bytes('No ref signal, cannot get frame.'))
         else:
             result = sock.sendall(bytes('Command {} not recognized!'.format(command),'utf-8'))
         return result
@@ -184,6 +203,7 @@ class Vt899:
         self.corr_result = np.array(corr_result, dtype = 'float32')
         rx_p_ref = array.array('f', [(samples_frame[i]+samples_frame[-500+i])/2 for i in range(500)])
         self.rx_p_ref_bytes = rx_p_ref.tobytes()
+        self.rx_p_ref = rx_p_ref
 
 
 def save_ref_p(filepath, ref_to_save, dtype = 'd'): # 'd': 8byte floating point
@@ -219,3 +239,30 @@ def extract_frame(samples, frame_len, preamble): # regular method, correlation w
     peeks.sort()
     print(peeks,peeks[1]-peeks[0])
     return (samples[peeks[0]+500:peeks[0]+500+frame_len], corr_results)
+
+def resample_symbols(rx_frame, rx_p_ref, intp_n=10):
+    """ This function works around the imperfect-sampling-position problem.
+        First, the received frame (rx_frame) is interpolated by intp_n times;
+        Then, find a best downsample group by comparing to the reference
+        preamble (rx_p_ref);
+        At last, downsample and return the resampled frame (rx_resampled).
+    """
+    rx_frame = np.concatenate([rx_frame,[rx_frame[-1]]])
+    p_len = len(rx_p_ref)
+    nsymbol = len(rx_frame)
+    # pad the signal with more detail before down-sampling
+    x_origin = np.arange(0, nsymbol)
+    x_interp = np.arange(0,nsymbol-1, nsymbol/(nsymbol*intp_n))
+    f_interp = interpolate.interp1d(x_origin,rx_frame,'cubic')
+    rx_interp = f_interp(x_interp)
+    rx_interp_left = np.concatenate([[rx_interp[0]]*intp_n,rx_interp[0:-1*intp_n]]) 
+    rx_candicate = np.concatenate(
+            [np.reshape(rx_interp_left,newshape=(intp_n,-1), order='F'),
+             np.reshape(rx_interp,newshape=(intp_n,-1), order='F')])
+    # The following line is to sort out a candidate sublist which has the
+    # shortest distance from the reference signal. Execept for correlation,
+    # other "distances": braycurtis,cosine,canberra,chebyshev,correlation
+    dist = [correlation(candi,rx_p_ref) for candi in rx_candicate[:,0:p_len]] 
+    rx_resampled = rx_candicate[np.argmin(dist)]
+    return rx_resampled
+
