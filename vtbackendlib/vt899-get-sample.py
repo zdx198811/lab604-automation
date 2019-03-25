@@ -21,6 +21,8 @@ from scipy import interpolate
 from scipy.spatial.distance import correlation  # braycurtis,cosine,canberra,chebyshev
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+import NamedAtomicLock as syslock
+
 
 currdir = getcwd()
 _sample_bin_path = '/tmp/chan1.bin'
@@ -91,6 +93,7 @@ class data_feeder_fh:
     """
     def __init__(self, mmap_file, n_sample, sim_flag):
         self._m = mmap_file
+        self._mmaplock = syslock.NamedAtomicLock(name='fh')
         self.n_sample = n_sample
         if sim_flag:
             self._all_samples = []
@@ -111,7 +114,9 @@ class data_feeder_fh:
             samples_4g = self.decimate_for_fh_demo(samples_56g)
             sample_list_norm = norm_to_127_int8(samples_4g[0:self.n_sample])
             sample_list_bin = sample_list_norm.tobytes()
+            self._mmaplock.acquire()
             self._m[0:self.n_sample] = sample_list_bin
+            self._mmaplock.release()
             yield np.array(samples_4g[0:20])
     
     def iterate_fn_sim(self):
@@ -124,7 +129,9 @@ class data_feeder_fh:
         loopcnt = len(_all_samples_bin)
         for i in range(99999):
             # print('the {}th plot '.format(i))
+            self._mmaplock.acquire()
             self._m[0:self.n_sample] = _all_samples_bin[i % loopcnt]
+            self._mmaplock.release()
             yield np.array(self._all_samples[i % loopcnt][0:20])
 
     def load_local_sample_files(self, sample_bin_path):
@@ -154,6 +161,7 @@ class data_feeder_pon56g:
     """
     def __init__(self, mmap_file, n_sample, sim_flag):
         self._m = mmap_file
+        self._mmaplock = syslock.NamedAtomicLock(name='pon56g')
         self.n_sample = n_sample
         if sim_flag:
             self._all_samples = []
@@ -173,7 +181,9 @@ class data_feeder_pon56g:
             samples_56g = mview_int8.tolist()
             sample_list_norm = norm_to_127_int8(samples_56g[0:self.n_sample])
             sample_list_bin = sample_list_norm.tobytes()
+            self._mmaplock.acquire()
             self._m[0:self.n_sample] = sample_list_bin
+            self._mmaplock.release()
             yield np.array(samples_56g[0:20])
     
     def iterate_pon56g_sim(self):
@@ -188,7 +198,9 @@ class data_feeder_pon56g:
         loopcnt = len(_all_samples_bin)
         for i in range(99999):
             # print('the {}th plot '.format(i))
+            self._mmaplock.acquire()
             self._m[0:self.n_sample] = _all_samples_bin[i % loopcnt]
+            self._mmaplock.release()
             yield np.array(self._all_samples[i % loopcnt][0:20])
 
     def load_local_sample_files(self, sample_bin_path):

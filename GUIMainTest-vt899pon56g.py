@@ -23,12 +23,12 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset
 
-############## Temp. code #################
+############## Debugging ##################
 _SIM = True
 ###########################################
 
-VT899Addr = "172.24.145.24", 9998
-M8195Addr = "172.24.145.77"
+VT899Addr = "10.242.13.34", 9998
+M8195Addr = "10.242.13.77"
 cwd = getcwd()
 sample_folder = cwd+'\\vtbackendlib\\0726vt899pon56g\\'
 

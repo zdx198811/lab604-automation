@@ -94,7 +94,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def createTopFigureGroupBox(self):
         self.TopFigureGroupBox = QtWidgets.QGroupBox("Background information")
         self.inforGraph = QtWidgets.QLabel(self)
-        pixmap = QtGui.QPixmap('./guiunits/image.png')
+        pixmap = QtGui.QPixmap('./guiunits/imags/fh-bkg.png')
         self.inforGraph.setPixmap(pixmap)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.inforGraph)

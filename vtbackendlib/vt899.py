@@ -20,12 +20,14 @@ Discription:
 
 import mmap
 import subprocess
+from multiprocessing import Pool
 import array
 from core.vt_comm import commandset_pack
 from os import name as os_name
 import numpy as np
 from scipy import interpolate
 from scipy.spatial.distance import correlation
+from vtbackendlib.NamedAtomicLock import NamedAtomicLock
 
 # subprocess.run(["pwd"])
 
@@ -87,7 +89,10 @@ class Vt899:
         
         # Locate the mmap file. For communication with vt899-get-sample.py
         self._MMAP_FILE = self._MMAP_FILE.format(app_name)
-
+        
+        # allocate a inter-process lock to synchronize mmap file operation.
+        self._mmaplock = NamedAtomicLock(app_name)
+        
         # run the vt899-get-sample.py script.
         if sim_flag:  # for simulation, run the fake data capturing
             script_arg = ['-s', '-p']
@@ -177,11 +182,15 @@ class Vt899:
         if (os_name == 'posix'):
             with mmap.mmap(f.fileno(), 0,  flags=mmap.MAP_SHARED,
                                access=mmap.ACCESS_READ) as m:
+                self._mmaplock.acquire()
                 data_to_send = m[0:data_len]
+                self._mmaplock.release()
                 sock.sendall(data_to_send)
         else:  # 'nt'
             with mmap.mmap(f.fileno(), 0,  access=mmap.ACCESS_READ) as m:
+                self._mmaplock.acquire()
                 data_to_send = m[0:data_len]
+                self._mmaplock.release()
                 sock.sendall(data_to_send)        
 
     def handle_UpdateRate(self, sock):
@@ -195,7 +204,9 @@ class Vt899:
         samples captured form AWG and fill `self.prmbl_int` & `self.prmbl_bin`.
         '''
         self.prmbl_int = prmbl_int_list
+        self._mmaplock.acquire()
         samples_all_bin = m[0:self._N_SAMPLE]
+        self._mmaplock.release()
         samples_all = np.array(memoryview(samples_all_bin).cast('b').tolist())
         (samples_frame, corr_result) = extract_frame(samples_all,
                                                      self._N_SAMPLE_FRAME,
@@ -266,3 +277,29 @@ def resample_symbols(rx_frame, rx_p_ref, intp_n=10):
     rx_resampled = rx_candicate[np.argmin(dist)]
     return rx_resampled
 
+def resample_symbols_mp(rx_frame_in, rx_p_ref, intp_n=10):
+    """ the multi-process version of resample_symbols.
+    """
+    rx_frame = np.concatenate([rx_frame_in,[rx_frame_in[-1]]])
+    p_len = len(rx_p_ref)
+    nsymbol = len(rx_frame)
+    # pad the signal with more detail before down-sampling
+    x_origin = np.arange(0, nsymbol)
+    x_interp = np.arange(0,nsymbol-1, nsymbol/(nsymbol*intp_n))
+    f_interp = interpolate.interp1d(x_origin,rx_frame,'cubic')
+    rx_interp = f_interp(x_interp)
+    rx_interp_left = np.concatenate([[rx_interp[0]]*intp_n,rx_interp[0:-1*intp_n]]) 
+    rx_candicate = np.concatenate(
+            [np.reshape(rx_interp_left,newshape=(intp_n,-1), order='F'),
+             np.reshape(rx_interp,newshape=(intp_n,-1), order='F')])
+    # The following line is to sort out a candidate sublist which has the
+    # shortest distance from the reference signal. Execept for correlation,
+    # other "distances": braycurtis,cosine,canberra,chebyshev,correlation
+    with Pool(processes=8) as pool:
+        dist = pool.map(correlation_for_mp, zip(rx_candicate[:,0:p_len], [rx_p_ref]*len(rx_candicate)))
+    #dist = [correlation(candi,rx_p_ref) for candi in rx_candicate[:,0:p_len]] 
+    rx_resampled = rx_candicate[np.argmin(dist)]
+    return rx_resampled
+
+def correlation_for_mp(input_tuple):
+    return correlation(input_tuple[0], input_tuple[1])
