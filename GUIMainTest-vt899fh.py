@@ -13,7 +13,7 @@ from locale import atoi
 import numpy as np
 import core.vt_device as vt_device
 import core.dmt_lib as dmt
-from guiunits.plotconstallation import MyDynamicMplCanvas
+from guiunits.mlpplotwidget import fhDemoPlot
 from guiunits.connectbutton import ConnectBtn
 from guiunits.ledpannel import LedPannel
 
@@ -110,7 +110,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     
     def createBottomMiddlePlotGroupBox(self):
         self.BottomMiddlePlotGourpBox = QtWidgets.QGroupBox("constellation digram")
-        self.constellation = MyDynamicMplCanvas(parent=None, width=5, height=4,
+        self.constellation = fhDemoPlot(parent=None, width=5, height=4,
                                    dpi=100, datadevice=self.datadevice)
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.constellation)

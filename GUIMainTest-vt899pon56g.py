@@ -8,15 +8,25 @@ Description:
 """
 
 import array
+import sys
 from os import getcwd
 from time import sleep
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsScene, \
+                QGraphicsPixmapItem, QGraphicsView, QGraphicsItem, \
+                QPushButton, QLabel, QWidget, QGraphicsOpacityEffect, \
+                QGraphicsTextItem, QTextBrowser, QLineEdit, QGroupBox, \
+                QVBoxLayout, QGridLayout
+from PyQt5.QtGui import QBrush, QPen, QPainter, QPixmap, QFont, QColor
+from PyQt5.QtCore import (Qt, QObject, QPointF, 
+        QPropertyAnimation, pyqtProperty)
 from vtbackendlib.vt899 import extract_frame, resample_symbols
 import numpy as np
 import core.vt_device as vt_device
 from core.ook_lib import OOK_signal
-import matplotlib.pyplot as plt
 from core.ks_device import M8195A
+from guiunits.connectbutton import ConnectBtn
+from guiunits.speedometer import Speedometer
+from guiunits.mlpplotwidget import pon56gDemoPlot
 import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
@@ -293,81 +303,315 @@ def normalize_rxsymbols(rx_raw):
     rx_shift = (np.array(rx_raw)-np.mean(rx_raw))
     return rx_shift/np.max(np.abs(rx_shift))
 
+class Fan(QObject):
+    """ Define a class to show a picture of a fan, for animation.
+    
+    To define a pyqtProperty for animation, the base class should be a QObject
+    or any other inherited classes, like QWidget.
+    Then, add a QGraphicsPixmapItem to accormadate the picture.
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.pixmap_item = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\fan.png'))
+        self.pixmap_item.setTransformOriginPoint(self.pixmap_item.boundingRect().center())
+        #self.pixmap_item.show()
+        
+    def _set_rotation_dgr(self, dgr):
+        self.pixmap_item.setRotation(dgr)
+        
+    def fanAnimation(self):
+        anim = QPropertyAnimation(self, b'rotation')
+        return anim
+    
+    rotation = pyqtProperty(float, fset=_set_rotation_dgr)
+
+        
+class AppWindow(QMainWindow):
+    def __init__(self, datadevice):
+        super().__init__()
+        self.datadevice = datadevice
+        self.nokia_blue = QColor(18, 65, 145)
+        self.title = "High-speed PON demo"
+        self.geo = {
+            'top'   : 30,
+            'left'  : 0,
+            'width' : 1920,
+            'height': 1080 }
+        self.setStyleSheet("background-color: white;")
+        self.initWindow()
+        
+    def initWindow(self):
+        self.setWindowTitle(self.title)
+        self.setGeometry(self.geo['left'], self.geo['top'], 
+                         self.geo['width'], self.geo['height'])
+
+        self.titleBar = self.inittitlebar()
+        self.bkgrndGroup = self.initbkgrndgroup()
+        self.detailGroup = self.initdetailgroup()
+        self.prototypeGroup = self.initprototypeGroup()
+        
+        self.initGeometries()
+        self.initConnections()
+        self.show()
+        
+    def initGeometries(self):
+        self.titleBar.setGeometry(147 ,59, 1625, 69)
+        self.bkgrndGroup.setGeometry(20 ,178, 570, 826)
+        self.detailGroup.setGeometry(610 ,178, 1285, 420)
+        self.prototypeGroup.setGeometry(610, 613, 1285, 391)
+
+    def inittitlebar(self):
+        wdgt = QWidget(parent=self)
+        mainTitle = QLabel(parent=wdgt)
+        mainTitle.setText("Ultra-Fast Fiber Access with Intelligent PHY")
+        font = QFont("Nokia Pure Text Light", 30, QFont.Bold)
+        mainTitle.setFont(font)
+        # mainTitle.setFrameStyle(22)  # show border
+        mainTitle.setAlignment(Qt.AlignRight | Qt.AlignCenter)
+        palette = self.palette()
+        palette.setColor(self.foregroundRole(), self.nokia_blue)
+        mainTitle.setPalette(palette)
+        mainTitle.setGeometry(0,0,880, 69)
+        
+        subTitle = QLabel(parent=wdgt)
+        subTitle.setText("—— Enabling 50Gbps over 10G-class devices")
+        font = QFont("Nokia Pure Text Light", 20)
+        subTitle.setFont(font)
+        # subTitle.setFrameStyle(22)  # show border
+        subTitle.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        palette = self.palette()
+        palette.setColor(self.foregroundRole(), self.nokia_blue)
+        subTitle.setPalette(palette)
+        subTitle.setGeometry(900,16,600, 40)
+        return wdgt
+
+    def initbkgrndgroup(self):
+        wdgt = QWidget(parent=self)
+        
+        title = QLabel(parent=wdgt)
+        title.setText("Growing Demand for Access")
+        font = QFont("Nokia Pure Text Light", 25)
+        title.setFont(font)
+        # title.setFrameStyle(22)  # show border
+        title.setAlignment(Qt.AlignHCenter | Qt.AlignCenter)
+        palette = self.palette()
+        palette.setColor(self.foregroundRole(), self.nokia_blue)
+        title.setPalette(palette)
+        title.setGeometry(20, 10, 490, 69)
+        
+        bkgrndYear = QLabel(parent=wdgt)
+        bkgrndYear.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrndyear.png'))
+        bkgrndYear.move(25,110)
+        
+        bkgrndSlider = QLabel(parent=wdgt)
+        bkgrndSlider.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrndslider.png'))
+        bkgrndSlider.move(35,490)
+        
+        bkgrnd2015 = QLabel(parent=wdgt)
+        bkgrnd2015.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrnd2015.png'))
+        bkgrnd2015.move(280, 600)
+        # anim2015 = QPropertyAnimation(bkgrnd2015, b"windowOpacity")
+        
+        bkgrnd2020 = QLabel(parent=wdgt)
+        bkgrnd2020.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrnd2020.png'))
+        bkgrnd2020.move(270, 340)
+        mask2020 = QGraphicsOpacityEffect(parent=bkgrnd2020)
+        bkgrnd2020.setGraphicsEffect(mask2020)
+        mask2020.setOpacity(0.5)
+
+        print(mask2020.isEnabled() )
+        
+        bkgrnd2025 = QLabel(parent=wdgt)
+        bkgrnd2025.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrnd2025.png'))
+        bkgrnd2025.move(280, 103)
+        
+        
+        wdgt.setStyleSheet("background-color: rgb(242, 242, 242);")
+        return wdgt
+        
+    def initdetailgroup(self):
+        view = QGraphicsView(parent=self)
+        brush=QBrush(QColor(242, 242, 242))
+        view.setBackgroundBrush(brush)
+        view.setFrameStyle(16)  # QFrame.Plain
+        
+        detailFigure = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure.png'))
+        title = QGraphicsTextItem("Our Innovation/Contribution")
+        font = QFont("Nokia Pure Text Light", 25)
+        title.setFont(font)
+        title.setDefaultTextColor(self.nokia_blue)
+        fan = Fan()
+        
+        scene = QGraphicsScene()
+        scene.setSceneRect(0, 0, 1285, 420)
+        scene.addItem(detailFigure)
+        scene.addItem(title)
+        scene.addItem(fan.pixmap_item)
+        
+        detailFigure.setPos(QPointF(28, 52))
+        title.setPos(QPointF(50,20))
+        fan.pixmap_item.setPos(QPointF(457, 139))
+        self.fanAnim = fan.fanAnimation()
+        
+        view.setScene(scene)
+        view.setSceneRect(0, 0, 1285, 420)
+        view.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        view.setRenderHint(QPainter.Antialiasing)      
+
+        return view
+    
+    
+    def initprototypeGroup(self):
+        wdgt = QWidget(parent=self)
+        
+        title = QLabel(parent=wdgt)
+        title.setText("Prototype Real-time Monitor")
+        font = QFont("Nokia Pure Text Light", 25)
+        title.setFont(font)
+        # title.setFrameStyle(22)  # show border
+        title.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
+        palette = self.palette()
+        palette.setColor(self.foregroundRole(), self.nokia_blue)
+        title.setPalette(palette)
+        title.setGeometry(20, 10, 490, 69)
+        
+        meter = Speedometer(title='Data Rate', unit = 'Gbps',
+                            min_value=0, max_value=60, parent=wdgt)
+        meter.setGeometry(490, 60, 320, 280)
+        
+        berPlot = pon56gDemoPlot(parent=wdgt, width=5, height=4, tight_layout=True,
+                                 dpi=100, datadevice=self.datadevice)
+        berPlot.setGeometry(40, 70, 440, 280)
+
+        ConsoleGroupBox = QGroupBox("Device Control Panel", parent=wdgt)
+        ConsoleGroupBox.setGeometry(820, 18, 420, 340)
+        Console = QTextBrowser()
+        AddrEdit = QLineEdit()
+        ConnectButton = ConnectBtn(AddrEdit)
+        TestConnectionButton = QPushButton("Test Connection")
+        StartStopButton = QPushButton("Train NN")
+        QuitButton = QPushButton("Quit")
+        layout = QVBoxLayout()
+        sublayout = QGridLayout()
+        sublayout_widget = QWidget()
+        sublayout.addWidget(AddrEdit, 1, 0, 1, 2)
+        sublayout.addWidget(ConnectButton, 1, 2)
+        sublayout.addWidget(TestConnectionButton, 2, 0)
+        sublayout.addWidget(StartStopButton, 2, 1)
+        sublayout.addWidget(QuitButton, 2, 2)
+        sublayout_widget.setLayout(sublayout)
+        layout.addWidget(Console)
+        layout.addWidget(sublayout_widget)
+        ConsoleGroupBox.setLayout(layout)
+        AddrEdit.setStyleSheet("background-color: rgb(255, 255, 255);")
+        Console.setStyleSheet("background-color: rgb(255, 255, 255);")
+        
+        wdgt.setStyleSheet("background-color: rgb(242, 242, 242);")
+        return wdgt
+        
+    def initConnections(self):
+        pass
+
+
 if __name__ == '__main__':
     csvpath = 'D:\\PythonScripts\\lab604-automation\\vtbackendlib\\0726vt899pon56g\\'
-    ook_preamble = OOK_signal(load_file= csvpath+'Jul 6_1741preamble.csv')
+#    ook_preamble = OOK_signal(load_file= csvpath+'Jul 6_1741preamble.csv')
     frame_len = 196608
-    trainset = OOK_signal()
-    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0841train.csv'))
-    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0842train.csv'))
-    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0843train.csv'))
-    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0845train.csv'))
+#    trainset = OOK_signal()
+#    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0841train.csv'))
+#    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0842train.csv'))
+#    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0843train.csv'))
+#    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0845train.csv'))
 
     if not _SIM:
         # initiate AWG
         m8195a = awg(M8195Addr)
     
     vt899 = vtdev("vt899pondemo", VT899Addr, frame_len, 56)
-    vt899.open_device()
-    vt899.print_commandset()
-    vt899.query('hello')
     
-    if not _SIM:
-        # send a frame containing preamble
-        data_for_prmbl_sync = trainset.take(slice(frame_len))
-        awg.send_binary_port1(250*(data_for_prmbl_sync-0.5))
-        sleep(1)  # make sure the ADC has captured the new waveform
-        
-    ook_prmlb = ook_preamble.nrz(dtype = 'int8')
-    vt899.set_preamble(ook_prmlb)
-    vt899.trainset = trainset
-    vt899.config('prmbl500', ook_prmlb.tobytes())
-    sleep(2)  # the backend need several seconds to do resample & correlation
-    ref_bin = vt899.query_bin('getRef 2000')
-    vt899.preamble_wave = np.array(memoryview(ref_bin).cast('f').tolist())
-   
-#    corr_result = np.array(memoryview(vt899.query_bin('getCorr 1570404')).cast('f').tolist())
-#    plt.plot(corr_result)
-    
-    trainset_rx = []
-    if not _SIM:
-        for i in range(4):
-            print(slice(i*frame_len, (i+1)*frame_len))
-            data_for_train = trainset.take(slice(i*frame_len, (i+1)*frame_len))
-            awg.send_binary_port1(250*(data_for_train-0.5))
-            sleep(2)  # make sure the ADC has captured the new waveform
-            frame_bin = vt899.query_bin('getFrame 786432')
-            frame = list(memoryview(frame_bin).cast('f').tolist())
-            trainset_rx.extend(frame)
-    else:
-        for i in range(4):
-            path_str = sample_folder+'chan1-{0}.bin'.format(i)
-            samples_all = normalize_rxsymbols(read_sample_bin_file(path_str))
-            (samples_frame, cl) = extract_frame(samples_all, 196608, ook_preamble.nrz())
-            trainset_rx.extend(resample_symbols(samples_frame, vt899.preamble_wave))
-       
-    vt899.train_nn(np.array(trainset_rx))
-    
-    if not _SIM:
-        ookrand = OOK_signal()
-        ookrand.append(ook_preamble)
-        ookrand.append(np.random.randint(2,size=frame_len-2*ook_preamble.data_len))
-        ookrand.append(ook_preamble)
-        awg.send_binary_port1(126*ookrand.nrz(), rescale = False)
-        rx_bin = vt899.query_bin('getFrame 786432')
-        rx_frame = list(memoryview(rx_bin).cast('f').tolist())
-    else:
-        ook_rand = OOK_signal(data_ref=trainset.take(slice(0*frame_len, 1*frame_len)))
-        rx_all = normalize_rxsymbols(read_sample_bin_file(csvpath+'chan1-0.bin'))
-        (rx_orign, cl) = extract_frame(rx_all, 196608, ook_preamble.nrz())
-        rx_frame = resample_symbols(rx_orign, vt899.preamble_wave)
-        
-    vt899.hd_decision(ook_rand.nrz(), rx_frame)
-    vt899.run_inference(ook_rand.nrz(), rx_frame)
-    
-    vt899.close_device()
+    pon56Gdemo = QApplication(sys.argv)
+    window = AppWindow(datadevice=vt899)
+    sys.exit(pon56Gdemo.exec())
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+#    vt899.open_device()
+#    vt899.print_commandset()
+#    vt899.query('hello')
+#    
+#    if not _SIM:
+#        # send a frame containing preamble
+#        data_for_prmbl_sync = trainset.take(slice(frame_len))
+#        awg.send_binary_port1(250*(data_for_prmbl_sync-0.5))
+#        sleep(1)  # make sure the ADC has captured the new waveform
+#        
+#    ook_prmlb = ook_preamble.nrz(dtype = 'int8')
+#    vt899.set_preamble(ook_prmlb)
+#    vt899.trainset = trainset
+#    vt899.config('prmbl500', ook_prmlb.tobytes())
+#    sleep(2)  # the backend need several seconds to do resample & correlation
+#    ref_bin = vt899.query_bin('getRef 2000')
+#    vt899.preamble_wave = np.array(memoryview(ref_bin).cast('f').tolist())
+#   
+##    corr_result = np.array(memoryview(vt899.query_bin('getCorr 1570404')).cast('f').tolist())
+##    plt.plot(corr_result)
+#    
+#    trainset_rx = []
+#    if not _SIM:
+#        for i in range(4):
+#            print(slice(i*frame_len, (i+1)*frame_len))
+#            data_for_train = trainset.take(slice(i*frame_len, (i+1)*frame_len))
+#            awg.send_binary_port1(250*(data_for_train-0.5))
+#            sleep(2)  # make sure the ADC has captured the new waveform
+#            frame_bin = vt899.query_bin('getFrame 786432')
+#            frame = list(memoryview(frame_bin).cast('f').tolist())
+#            trainset_rx.extend(frame)
+#    else:
+#        for i in range(4):
+#            path_str = sample_folder+'chan1-{0}.bin'.format(i)
+#            samples_all = normalize_rxsymbols(read_sample_bin_file(path_str))
+#            (samples_frame, cl) = extract_frame(samples_all, 196608, ook_preamble.nrz())
+#            trainset_rx.extend(resample_symbols(samples_frame, vt899.preamble_wave))
+#       
+#    vt899.train_nn(np.array(trainset_rx))
+#    
+#    if not _SIM:
+#        ookrand = OOK_signal()
+#        ookrand.append(ook_preamble)
+#        ookrand.append(np.random.randint(2,size=frame_len-2*ook_preamble.data_len))
+#        ookrand.append(ook_preamble)
+#        awg.send_binary_port1(126*ookrand.nrz(), rescale = False)
+#        rx_bin = vt899.query_bin('getFrame 786432')
+#        rx_frame = list(memoryview(rx_bin).cast('f').tolist())
+#    else:
+#        ook_rand = OOK_signal(data_ref=trainset.take(slice(0*frame_len, 1*frame_len)))
+#        rx_all = normalize_rxsymbols(read_sample_bin_file(csvpath+'chan1-0.bin'))
+#        (rx_orign, cl) = extract_frame(rx_all, 196608, ook_preamble.nrz())
+#        rx_frame = resample_symbols(rx_orign, vt899.preamble_wave)
+#        
+#    vt899.hd_decision(ook_rand.nrz(), rx_frame)
+#    vt899.run_inference(ook_rand.nrz(), rx_frame)
+#    
+#    vt899.close_device()
+#    
+#    
 
 
 

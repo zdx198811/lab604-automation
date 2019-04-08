@@ -5,20 +5,21 @@ Created on Mon Feb 18 10:47:43 2019
 @author: dongxucz
 """
 
-from qtpy.QtCore import Qt, QPoint, QRectF, QPointF, QSize
-from qtpy.QtGui import (QColor, QConicalGradient, QPainterPath,
+from PyQt5.QtCore import Qt, QPoint, QRectF, QPointF, QSize, pyqtProperty, QPropertyAnimation
+from PyQt5.QtGui import (QColor, QConicalGradient, QPainterPath,
         QPainter, QFont, QFontMetrics)
-from qtpy.QtWidgets import QApplication, QWidget, QSizePolicy
+from PyQt5.QtWidgets import QApplication, QWidget, QSizePolicy
 
 class Speedometer(QWidget):
     """QWidget of a Speedometer
     Use `setSpeed(speed)` method to update display.
+    Use `reset()` to reset back to 0 with an animation effect.
     """
     def __init__(self, title, unit, min_value, max_value, init_value=None, parent=None):
         QWidget.__init__(self, parent)
         self.min_value = min_value
         self.max_value = max_value
-        initv = 0
+        initv = 0.0
         if init_value:
             if init_value < 0:
                 initv = 0
@@ -40,6 +41,10 @@ class Speedometer(QWidget):
         self.unit = unit
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Ignored)
         
+        self.anim_reset = QPropertyAnimation(self, b"value")
+        self.anim_reset.setDuration(500)
+        self.anim_reset.setEndValue(0)
+    
     def setSpeed(self, speed):
         self.speed = speed
         self.power = 100.0 * (self.speed-self.min_value)/(self.max_value-self.min_value)
@@ -66,6 +71,10 @@ class Speedometer(QWidget):
     def sizeHint(self):
         return QSize(100,100)
     
+    def reset(self):
+        self.anim_reset.setStartValue(self.speed)
+        self.anim_reset.start()
+        
     def paintEvent(self, evt):
         x1 = QPoint(0, -70)
         x2 = QPoint(0, -90)
@@ -74,7 +83,7 @@ class Speedometer(QWidget):
         extRect = QRectF(-90,-90,180,180)
         intRect = QRectF(-70,-70,140,140)
         midRect = QRectF(-44,-80,160,160)
-        unitRect = QRectF(-44,60,110,50)
+        unitRect = QRectF(-50,60,110,50)
 
         speedInt = self.speed
         #speedDec = (self.speed * 10.0) - (speedInt * 10)
@@ -143,13 +152,15 @@ class Speedometer(QWidget):
         #fm2 = QFontMetrics(speedDecFont)
         #speedDecWidth = fm2.width(s_SpeedDec)
 
-        leftPos = -1 * speedWidth + 50
+        leftPos = -1 * speedWidth + 40
         leftDecPos = leftPos + speedWidth
         topPos = 10
         topDecPos = 10
         painter.setPen(self.speedTextColor)
         painter.setFont(speedFont)
         painter.drawText(leftPos, topPos, s_SpeedInt)
+
+    value = pyqtProperty(float, fset=setSpeed)
 
 if __name__ == '__main__':
     import sys
@@ -160,40 +171,46 @@ if __name__ == '__main__':
     meter = Speedometer('Speedometer', 'Km/h', 0, 100)
     steps = 60
     coef = 90/sum([1/i for i in range(1,steps+1)])
-    
-    def initSpeed(): # count=1, interval=100
-        current_speed = 0
-        counter = 1
-        timer = QTimer()
-        def helloworld():
-            print('hello',meter.speed)
-            step = randn()/10
-            if ((meter.speed + step) >= 100) or ((meter.speed + step) <=80):
-                step = step * (-1)
-            meter.setSpeed(meter.speed + step)
-        def handler():
-            nonlocal current_speed
-            nonlocal counter
-            meter.setSpeed(current_speed)
-            current_speed = current_speed + 19.231301736672293/counter
-            print(counter)
-            counter = counter + 1
-            if counter >= 61:
-                #timer.stop()
-                #timer.deleteLater()
-                timer.timeout.disconnect(handler)
-                timer.timeout.connect(helloworld)
-        timer.timeout.connect(handler)
-        timer.start(10)
+    global timer
+    timer = QTimer()
+    timer.setInterval(20)
+    global status
+    status = 'off'
+    startbutton = QPushButton('Start')
+    startbutton.resize(150 ,  80)
+    anim_start = QPropertyAnimation(meter, b"value")
+    anim_start.setDuration(500)
+    anim_start.setStartValue(0)
+    anim_start.setEndValue(80)
+    anim_start.finished.connect(timer.start)
 
-    topbutton = QPushButton('start')
-    topbutton.resize(150 ,  80)
-    topbutton.clicked.connect(initSpeed)
+    def random_speed_jitter():
+        # print('hello',meter.speed)
+        step = randn()/10
+        if ((meter.speed + step) >= 100) or ((meter.speed + step) <=80):
+            step = step * (-1)
+        meter.setSpeed(meter.speed + step)
+
+    def swap_status():
+        global status
+        global timer
+        if (status == 'off'):
+            status = 'on'
+            startbutton.setText('Stop')
+            anim_start.start()  # timer will start after anim_start finishes
+        else:
+            status = 'off'
+            timer.stop()
+            startbutton.setText('Start')
+            meter.reset()
+    
+    timer.timeout.connect(random_speed_jitter)
+    startbutton.clicked.connect(swap_status)
     
     window = QWidget()
     window.resize(460,  500)
     layout = QVBoxLayout()
-    layout.addWidget(topbutton)
+    layout.addWidget(startbutton)
     layout.addWidget(meter)
     window.setLayout(layout)
 
