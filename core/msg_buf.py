@@ -13,7 +13,7 @@ class SigWrapper(QObject):
     
 
 class MessageBuf:
-    """ Buffer info/warning/error generated during device operation """
+    """ Buffer info/warning/error generated during device operation. """
     
     def __init__(self, histlim = 50, msg_src = ''):
         self.current_msg = ''

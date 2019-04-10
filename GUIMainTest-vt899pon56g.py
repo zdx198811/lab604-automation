@@ -15,10 +15,11 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsScene, \
                 QGraphicsPixmapItem, QGraphicsView, QGraphicsItem, \
                 QPushButton, QLabel, QWidget, QGraphicsOpacityEffect, \
                 QGraphicsTextItem, QTextBrowser, QLineEdit, QGroupBox, \
-                QVBoxLayout, QGridLayout
-from PyQt5.QtGui import QBrush, QPen, QPainter, QPixmap, QFont, QColor
-from PyQt5.QtCore import (Qt, QObject, QPointF, 
-        QPropertyAnimation, pyqtProperty)
+                QVBoxLayout, QGridLayout, QSlider
+from PyQt5.QtGui import QBrush, QPen, QPainter, QPixmap, QFont, QColor, QIcon
+from PyQt5.QtCore import (Qt, QObject, QPointF, QSize, QRect, QEasingCurve,
+        QPropertyAnimation, pyqtProperty, pyqtSignal, QEvent, QStateMachine, 
+        QSignalTransition, QState)
 from vtbackendlib.vt899 import extract_frame, resample_symbols
 import numpy as np
 import core.vt_device as vt_device
@@ -303,33 +304,76 @@ def normalize_rxsymbols(rx_raw):
     rx_shift = (np.array(rx_raw)-np.mean(rx_raw))
     return rx_shift/np.max(np.abs(rx_shift))
 
+class itemClickedSgnlWrapper(QObject):
+    sgnl = pyqtSignal()
+
 class Fan(QObject):
     """ Define a class to show a picture of a fan, for animation.
     
     To define a pyqtProperty for animation, the base class should be a QObject
     or any other inherited classes, like QWidget.
-    Then, add a QGraphicsPixmapItem to accormadate the picture.
+    Then, add a QGraphicsPixmapItem to host the picture.
     """
+       
     def __init__(self, parent=None):
         super().__init__(parent)
         self.pixmap_item = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\fan.png'))
         self.pixmap_item.setTransformOriginPoint(self.pixmap_item.boundingRect().center())
-        #self.pixmap_item.show()
+        #self.clickedSgnlWrapper = itemClickedSgnlWrapper()
+        #self.clicked = self.clickedSgnlWrapper.sgnl
+        #self.pixmap_item.mousePressEvent = self.clickEventHandler
+        
+    def clickEventHandler(self, event):
+        print('emitting signal')
+        self.clicked.emit()
         
     def _set_rotation_dgr(self, dgr):
         self.pixmap_item.setRotation(dgr)
         
     def fanAnimation(self):
         anim = QPropertyAnimation(self, b'rotation')
+        anim.setDuration(1000)
+        anim.setStartValue(0)
+        anim.setEndValue(360)
+        anim.setLoopCount(-1)
         return anim
     
+    # define a property named as 'rotation', and designate a setter function.
     rotation = pyqtProperty(float, fset=_set_rotation_dgr)
 
-        
+
+class fadingPic(QObject):
+    """ Wrap a QGraphicsPixmapItem and impliment the fade in/out animation"""
+    def __init__(self, pixmap, parent=None):
+        super().__init__(parent)
+        self.pixmap_item = QGraphicsPixmapItem(pixmap)
+    
+    def _set_opacity(self, opc):
+        self.pixmap_item.setOpacity(opc)
+    
+    def fadeIn(self):
+        anim = QPropertyAnimation(self, b'opacity')
+        anim.setDuration(800)
+        anim.setStartValue(0)
+        anim.setEndValue(1)
+        #anim.setLoopCount(1)
+        return anim
+    
+    def fadeOut(self):
+        anim = QPropertyAnimation(self, b'opacity')
+        anim.setDuration(800)
+        anim.setStartValue(1)
+        anim.setEndValue(0)
+        #anim.setLoopCount(1)
+        return anim    
+    
+    opacity = pyqtProperty(float, fset=_set_opacity)
+    
 class AppWindow(QMainWindow):
-    def __init__(self, datadevice):
+    def __init__(self, datadevice, awg):
         super().__init__()
         self.datadevice = datadevice
+        self.awg = awg
         self.nokia_blue = QColor(18, 65, 145)
         self.title = "High-speed PON demo"
         self.geo = {
@@ -338,6 +382,8 @@ class AppWindow(QMainWindow):
             'width' : 1920,
             'height': 1080 }
         self.setStyleSheet("background-color: white;")
+        self._detailFigure_2ClickedSigWrapper = itemClickedSgnlWrapper()
+        self.detailFigure_2Clicked = self._detailFigure_2ClickedSigWrapper.sgnl
         self.initWindow()
         
     def initWindow(self):
@@ -352,6 +398,7 @@ class AppWindow(QMainWindow):
         
         self.initGeometries()
         self.initConnections()
+        #self.fanAnim.start()
         self.show()
         
     def initGeometries(self):
@@ -403,9 +450,24 @@ class AppWindow(QMainWindow):
         bkgrndYear.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrndyear.png'))
         bkgrndYear.move(25,110)
         
-        bkgrndSlider = QLabel(parent=wdgt)
-        bkgrndSlider.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrndslider.png'))
-        bkgrndSlider.move(35,490)
+        bkgrndSlider = QPushButton(parent=wdgt)
+        bkgrndSlider.setFixedSize(40,60)
+        bkgrndSlider.setStyleSheet("QPushButton { background : transparent }")
+        bkgrndSlider.setIcon(QIcon(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrndslider.png'))
+        bkgrndSlider.setIconSize(QSize(50,63))
+        bkgrndSlider.setFlat(True)
+        bkgrndSlider.move(38,640)
+        
+        sliderAnim_1 = QPropertyAnimation(bkgrndSlider, b"geometry")
+        sliderAnim_1.setStartValue(QRect(38, 640, 40, 60))
+        sliderAnim_1.setEndValue(QRect(38, 400, 40, 60))
+        sliderAnim_1.setDuration(1000)
+        sliderAnim_1.setEasingCurve(QEasingCurve.OutQuad)
+        sliderAnim_2 = QPropertyAnimation(bkgrndSlider, b"geometry")
+        sliderAnim_2.setStartValue(QRect(38, 400, 40, 60))
+        sliderAnim_2.setEndValue(QRect(38, 160, 40, 60))
+        sliderAnim_2.setDuration(1000)
+        sliderAnim_2.setEasingCurve(QEasingCurve.OutQuad)
         
         bkgrnd2015 = QLabel(parent=wdgt)
         bkgrnd2015.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrnd2015.png'))
@@ -417,16 +479,35 @@ class AppWindow(QMainWindow):
         bkgrnd2020.move(270, 340)
         mask2020 = QGraphicsOpacityEffect(parent=bkgrnd2020)
         bkgrnd2020.setGraphicsEffect(mask2020)
-        mask2020.setOpacity(0.5)
-
-        print(mask2020.isEnabled() )
+        mask2020.setOpacity(0)
+        bkgrnd2020FadeIn = QPropertyAnimation(mask2020, b"opacity")
+        bkgrnd2020FadeIn.setDuration(1000)
+        bkgrnd2020FadeIn.setStartValue(0)
+        bkgrnd2020FadeIn.setEndValue(1)
+        bkgrnd2020FadeIn.setEasingCurve(QEasingCurve.InQuad)
         
         bkgrnd2025 = QLabel(parent=wdgt)
         bkgrnd2025.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrnd2025.png'))
-        bkgrnd2025.move(280, 103)
-        
+        bkgrnd2025.move(275, 110)
+        mask2025 = QGraphicsOpacityEffect(parent=bkgrnd2025)
+        bkgrnd2025.setGraphicsEffect(mask2025)
+        mask2025.setOpacity(0)
+        bkgrnd2025FadeIn = QPropertyAnimation(mask2025, b"opacity")
+        bkgrnd2025FadeIn.setDuration(1000)
+        bkgrnd2025FadeIn.setStartValue(0)
+        bkgrnd2025FadeIn.setEndValue(1)
+        bkgrnd2025FadeIn.setEasingCurve(QEasingCurve.InQuad)
         
         wdgt.setStyleSheet("background-color: rgb(242, 242, 242);")
+        
+        self.bkgrndSlider = bkgrndSlider
+        self.sliderAnim_1 = sliderAnim_1
+        self.sliderAnim_2 = sliderAnim_2
+        self.mask2020 = mask2020
+        self.mask2025 = mask2025
+        self.bkgrnd2020FadeIn = bkgrnd2020FadeIn
+        self.bkgrnd2025FadeIn = bkgrnd2025FadeIn
+        self._bkgrndSliderStatus = 0  # 0 - @2015; 1 - @2020; 2 - @2025
         return wdgt
         
     def initdetailgroup(self):
@@ -435,22 +516,32 @@ class AppWindow(QMainWindow):
         view.setBackgroundBrush(brush)
         view.setFrameStyle(16)  # QFrame.Plain
         
-        detailFigure = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure.png'))
+        def clickEventHandler(event):
+            self.detailFigure_2Clicked.emit()
+        
+        detailFigure_1 = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_1.png'))
+        #detailFigure_2 = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_2.png'))
+        detailFigure_2_Qobj = fadingPic(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_2.png'))
+        detailFigure_2 = detailFigure_2_Qobj.pixmap_item
+        detailFigure_1.mousePressEvent = clickEventHandler
         title = QGraphicsTextItem("Our Innovation/Contribution")
         font = QFont("Nokia Pure Text Light", 25)
         title.setFont(font)
         title.setDefaultTextColor(self.nokia_blue)
-        fan = Fan()
+        fan = Fan()  # a QObject which wraps a QGraphicsItem inside
         
         scene = QGraphicsScene()
         scene.setSceneRect(0, 0, 1285, 420)
-        scene.addItem(detailFigure)
+        scene.addItem(detailFigure_2)
+        scene.addItem(detailFigure_1)
         scene.addItem(title)
         scene.addItem(fan.pixmap_item)
         
-        detailFigure.setPos(QPointF(28, 52))
+        detailFigure_1.setPos(QPointF(28, 88))
+        detailFigure_2.setPos(QPointF(570, 40))
+        detailFigure_2.setOpacity(0)  # hided at first
         title.setPos(QPointF(50,20))
-        fan.pixmap_item.setPos(QPointF(457, 139))
+        fan.pixmap_item.setPos(QPointF(456.5, 138))
         self.fanAnim = fan.fanAnimation()
         
         view.setScene(scene)
@@ -459,7 +550,11 @@ class AppWindow(QMainWindow):
         view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         view.setRenderHint(QPainter.Antialiasing)      
-
+        
+        self.turbofan = fan
+        self.NNfigure_fadeIn = detailFigure_2_Qobj.fadeIn()
+        self.NNfigure_fadeOut = detailFigure_2_Qobj.fadeOut()
+        self._detailFigure_2_state = 0  # 0-hided, 1-showed
         return view
     
     
@@ -485,21 +580,24 @@ class AppWindow(QMainWindow):
                                  dpi=100, datadevice=self.datadevice)
         berPlot.setGeometry(40, 70, 440, 280)
 
+        self.updateTimer = QTimer()
+        self.updateTimer.setInterval(1500)
+
         ConsoleGroupBox = QGroupBox("Device Control Panel", parent=wdgt)
         ConsoleGroupBox.setGeometry(820, 18, 420, 340)
         Console = QTextBrowser()
         AddrEdit = QLineEdit()
         ConnectButton = ConnectBtn(AddrEdit)
-        TestConnectionButton = QPushButton("Test Connection")
-        StartStopButton = QPushButton("Train NN")
+        ResetNNButton = QPushButton("Reset Algorithm")
+        TrainButton = QPushButton("Train NN")
         QuitButton = QPushButton("Quit")
         layout = QVBoxLayout()
         sublayout = QGridLayout()
         sublayout_widget = QWidget()
         sublayout.addWidget(AddrEdit, 1, 0, 1, 2)
         sublayout.addWidget(ConnectButton, 1, 2)
-        sublayout.addWidget(TestConnectionButton, 2, 0)
-        sublayout.addWidget(StartStopButton, 2, 1)
+        sublayout.addWidget(ResetNNButton, 2, 0)
+        sublayout.addWidget(TrainButton, 2, 1)
         sublayout.addWidget(QuitButton, 2, 2)
         sublayout_widget.setLayout(sublayout)
         layout.addWidget(Console)
@@ -509,53 +607,96 @@ class AppWindow(QMainWindow):
         Console.setStyleSheet("background-color: rgb(255, 255, 255);")
         
         wdgt.setStyleSheet("background-color: rgb(242, 242, 242);")
+        
+        self.TrainButton = TrainButton
+        self.AddrEdit = AddrEdit
+        self.Console = Console
+        self.ConnectButton = ConnectButton
+        self.TrainButton = TrainButton
+        self.QuitButton = QuitButton
+        self.ResetNNButton = ResetNNButton
         return wdgt
         
-    def initConnections(self):
-        pass
+    def bkgrndGroupSM(self):
+        """ State machine of animations """
+        if self._bkgrndSliderStatus==0:  # move from 2015 to 2020
+            self.sliderAnim_1.start()
+            self.bkgrnd2020FadeIn.start()
+            self._bkgrndSliderStatus = 1
+        elif self._bkgrndSliderStatus==1:  # move from 2020 to 2025
+            self.sliderAnim_2.start()
+            self.bkgrnd2025FadeIn.start()
+            self._bkgrndSliderStatus = 2
+        elif self._bkgrndSliderStatus==2:  # move back to 2015
+            self.bkgrndSlider.move(38,640)
+            self.mask2020.setOpacity(0)
+            self.mask2025.setOpacity(0)
+            self._bkgrndSliderStatus = 0
 
+    def detailFigSM(self):
+        """ State machine of animations """
+        if self._detailFigure_2_state == 0:
+            self.NNfigure_fadeIn.start()
+            self._detailFigure_2_state = 1
+        else:
+            self.NNfigure_fadeOut.start()
+            self._detailFigure_2_state = 0
+    
+    def initConnections(self):
+        self.bkgrndSlider.clicked.connect(self.bkgrndGroupSM)
+        self.detailFigure_2Clicked.connect(self.detailFigSM)
+        self.ConnectButton.clicked.connect(self.openVTdevice)
+        self.AddrEdit.returnPressed.connect(self.openVTdevice)
+        self.QuitButton.clicked.connect(self.closeEvent)
+        self.datadevice.guisgnl.connect(self.Console.append)
+        
+    def openVTdevice(self):
+        ipaddr = self.AddrEdit.text()
+        print((ipaddr, 9998))
+        self.datadevice.set_net_addr((ipaddr,9998))
+        self.Console.append('connecting to'+ ipaddr)
+        if 'Connected' in self.datadevice.open_device().split():
+            self.
+
+    def fileQuit(self):
+        # close the VT_Device to inform the backend ending the TCP session.
+        self.datadevice.close_device()
+        self.close()
+
+    def closeEvent(self, ce):
+        self.fileQuit()
 
 if __name__ == '__main__':
     csvpath = 'D:\\PythonScripts\\lab604-automation\\vtbackendlib\\0726vt899pon56g\\'
-#    ook_preamble = OOK_signal(load_file= csvpath+'Jul 6_1741preamble.csv')
     frame_len = 196608
+    
+#    print('Loading data.............')
+#    ook_preamble = OOK_signal(load_file= csvpath+'Jul 6_1741preamble.csv')
 #    trainset = OOK_signal()
 #    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0841train.csv'))
 #    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0842train.csv'))
+#    print('50% done......')
 #    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0843train.csv'))
 #    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0845train.csv'))
-
+#    print('OK!')
+    
     if not _SIM:
         # initiate AWG
         m8195a = awg(M8195Addr)
+    else:
+        m8195a = None
     
     vt899 = vtdev("vt899pondemo", VT899Addr, frame_len, 56)
     
     pon56Gdemo = QApplication(sys.argv)
-    window = AppWindow(datadevice=vt899)
+    window = AppWindow(datadevice=vt899, awg=m8195a)
     sys.exit(pon56Gdemo.exec())
+    print("close device")
+    vt899.close_device()
     
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-#    vt899.open_device()
-#    vt899.print_commandset()
-#    vt899.query('hello')
-#    
+
+   
 #    if not _SIM:
 #        # send a frame containing preamble
 #        data_for_prmbl_sync = trainset.take(slice(frame_len))

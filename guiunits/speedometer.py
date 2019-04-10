@@ -14,6 +14,13 @@ class Speedometer(QWidget):
     """QWidget of a Speedometer
     Use `setSpeed(speed)` method to update display.
     Use `reset()` to reset back to 0 with an animation effect.
+    
+    To create animation of speed changing, use QPropertyAnimation on 'value':
+        anim = QPropertyAnimation(Speedometer, b"value")
+        anim.setStartValue(x)
+        anim.setEndValue(y)
+        anim.setDuration(ms)
+        anim.start()
     """
     def __init__(self, title, unit, min_value, max_value, init_value=None, parent=None):
         QWidget.__init__(self, parent)

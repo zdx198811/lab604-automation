@@ -11,10 +11,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal, QObject
 import numpy as np
 
-_equ_repeat_period = 1
-_SUB_START = 20
-_SUB_STOP = 35
-_PLOT_INTERVAL = 300  # ms
+
 
 def extract_samples_int(bin_data):
     mview = memoryview(bin_data)
@@ -65,17 +62,17 @@ class SigWrapper(QObject):
     sgnl_float = pyqtSignal(float)
 
 class fhDemoPlot(MplCanvas):
-    """A canvas that can update plots with new data from self.datadevice."""
+    """update plots with new data from self.datadevice."""
 
     def __init__(self, *args, **kwargs):
         MplCanvas.__init__(self, *args, **kwargs)
-        # self.datadevice.open_device()
-        # timer = QtCore.QTimer(self)
-        # timer.timeout.connect(self.update_figure)
-        # timer.start(_PLOT_INTERVAL)
         self.update_cnt = 0
         self.draw()
         self.sgnlwrapper = SigWrapper()
+        self._equ_repeat_period = 1
+        self._SUB_START = 20
+        self._SUB_STOP = 35
+        self._PLOT_INTERVAL = 300  # ms
         
     def compute_initial_figure(self):
         self.axes.plot([0]*20, 'ro-')
@@ -87,7 +84,7 @@ class fhDemoPlot(MplCanvas):
         self.sgnlwrapper.sgnl.emit(console_output)
         
     def update_figure(self):
-        if (self.update_cnt % _equ_repeat_period) == 0:
+        if (self.update_cnt % self._equ_repeat_period) == 0:
             re_clbrt = True
         else:
             re_clbrt = False
@@ -101,7 +98,7 @@ class fhDemoPlot(MplCanvas):
             self.datadevice.dmt_demod.update(alldata, re_calibrate = re_clbrt)
             print('!!!!!!!!!!!{}'.format(self.datadevice.dmt_demod.symbols_iq_shaped.shape))
             cleanxy = channel_filter(self.datadevice.dmt_demod.symbols_iq_shaped,
-                                     _SUB_START, _SUB_STOP)
+                                     self._SUB_START, self._SUB_STOP)
             evm = self.datadevice.evm_func(cleanxy, self.datadevice.dmt_demod.qam_level)
         else:
             self.send_console_output('ERROR: data device not opend')
@@ -116,8 +113,10 @@ class fhDemoPlot(MplCanvas):
         self.send_evm_value(evm)
         self.draw()
         
+
+        
 class pon56gDemoPlot(MplCanvas):
-    """A canvas that can update plots with new data from self.datadevice."""
+    """update plots with new data from self.datadevice."""
 
     def __init__(self, *args, **kwargs):
         MplCanvas.__init__(self, *args, **kwargs)
