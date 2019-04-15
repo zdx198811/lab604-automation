@@ -12,7 +12,6 @@ from PyQt5.QtCore import pyqtSignal, QObject
 import numpy as np
 
 
-
 def extract_samples_int(bin_data):
     mview = memoryview(bin_data)
     mview_int8 = mview.cast('b')
@@ -206,12 +205,17 @@ class pon56gDemoBerPlot(MplCanvas):
         
     def update_figure(self):
         response = self.datadevice.query_bin('getSigP 1')
-        sig_p = np.array(response, dtype='int8')[0]
+        if (len(response) != 1):
+            sig_p = 0
+        else:
+            sig_p = np.array(response, dtype='int8')[0]
+            print('mean signal amplitude: {}'.format(sig_p))
+            
         if self.datadevice.algo_state == self.datadevice.Init:
             pass
         
         elif self.datadevice.algo_state == self.datadevice.NoNN:
-            if sig_p > 50:
+            if sig_p > 10:  # make sure there is optical signal received
                 ber_base = 0.25
             else:
                 ber_base = 1
@@ -220,8 +224,8 @@ class pon56gDemoBerPlot(MplCanvas):
             
         elif self.datadevice.algo_state == self.datadevice.YesNN:
             
-            if sig_p > 50:
-                ber_base = 0.00012
+            if sig_p > 10: # make sure there is optical signal received
+                ber_base = 0.00082
             else:
                 ber_base = 1
             ber_jitter = np.mean(np.random.randn(100)/1000)

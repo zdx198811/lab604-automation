@@ -180,7 +180,7 @@ class data_feeder_pon56g:
             mview_int8 = mview.cast('b')
             samples_56g = mview_int8.tolist()
             #sample_list_norm = norm_to_127_int8(samples_56g[0:self.n_sample])
-            sample_list_norm = samples_56g[0:self.n_sample]
+            sample_list_norm = np.array(samples_56g[0:self.n_sample], dtype='int8')
             # sig_P stands for signal power, which is here simplified as amplitude
             sig_P = np.mean(np.abs(sample_list_norm[0:200])).astype('int8')
             with open('/tmp/chan1_SigP.bin', 'wb') as f_sigp:
@@ -201,8 +201,8 @@ class data_feeder_pon56g:
             sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
             _all_samples_bin.append(sample_list_norm.tobytes())
         loopcnt = len(_all_samples_bin)
-        sig_P_list = [120, 110, 89, 99, 78, 67, 78, 22, 12, 10, 7, 7 ,8, 9,
-                      2, 0, -2, 3, 5, 6, 2, -4, -9, 7, 1, 2, 4, 99, 88, 89,
+        sig_P_list = [120, 110, 89, 99, 78, 67, 78, 120, 110, 89, 99, 78, 87,
+                      2, 120, 110, 89, 99, 78, 67, 78, 120, 110, 99, 88, 89,
                       87, 99, 100, 109, 113, 86]  # just some random number
                       # simulating different signal power
         for i in range(99999):
@@ -277,7 +277,7 @@ if __name__ == '__main__':
         data_generator = data_feeder.iterate_fn()
         for data_slice in data_generator:
             sleep(0.7)
-            #print('updated data: '+str(data_slice[0:3])+' ...')
+            print('updated data: '+str(data_slice[0:10])+' ...')
     
     print('finish plotting')
     _m.close()

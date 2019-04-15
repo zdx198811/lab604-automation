@@ -7,12 +7,12 @@ Created on Fri Apr 12 09:51:15 2019
 
 training_console_output = \
 'INFO: epoch 1-1, loss: 0.094 (vt899pondemo)\n\
-INFO: epoch 1-599, loss: 0.015 (vt899pondemo)\n\
-INFO: epoch 1-1197, loss: 0.014 (vt899pondemo)\n\
-INFO: epoch 1-1795, loss: 0.013 (vt899pondemo)\n\
-INFO: epoch 1-2393, loss: 0.013 (vt899pondemo)\n\
-INFO: epoch 1-2991, loss: 0.013 (vt899pondemo)\n\
-INFO: epoch 1-3589, loss: 0.012 (vt899pondemo)\n\
+INFO: epoch 1-599, loss: 0.065 (vt899pondemo)\n\
+INFO: epoch 1-1197, loss: 0.030 (vt899pondemo)\n\
+INFO: epoch 1-1795, loss: 0.016 (vt899pondemo)\n\
+INFO: epoch 1-2393, loss: 0.015 (vt899pondemo)\n\
+INFO: epoch 1-2991, loss: 0.014 (vt899pondemo)\n\
+INFO: epoch 1-3589, loss: 0.013 (vt899pondemo)\n\
 INFO: epoch 1-4187, loss: 0.012 (vt899pondemo)\n\
 INFO: epoch 1-4785, loss: 0.012 (vt899pondemo)\n\
 INFO: epoch 1-5383, loss: 0.012 (vt899pondemo)\n\

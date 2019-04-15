@@ -237,10 +237,10 @@ class vtdev(vt_device.VT_Device):
         """ calculate an 'achievable bit rate' based on a BER value"""
         if ber>0.8:  # abnormal
             expectedGbps = 0
-        elif ber>0.001:  # NoNN
-            expectedGbps = 14-ber*10
+        elif ber>0.009:  # NoNN
+            expectedGbps = 12.5  # 14-ber*10
         else:  # YesNN
-            expectedGbps = -152.073*ber + 50.018
+            expectedGbps = -152.073*ber + 51.018
         return expectedGbps
     
     def save_trained_nn(self, nn_save_path):
