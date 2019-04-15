@@ -5,7 +5,7 @@ Created on Mon Feb 18 10:47:43 2019
 @author: dongxucz
 """
 
-from PyQt5.QtCore import Qt, QPoint, QRectF, QPointF, QSize, pyqtProperty, QPropertyAnimation
+from PyQt5.QtCore import Qt, QPoint, QRectF, QPointF, QSize, pyqtProperty, QPropertyAnimation, pyqtSlot
 from PyQt5.QtGui import (QColor, QConicalGradient, QPainterPath,
         QPainter, QFont, QFontMetrics)
 from PyQt5.QtWidgets import QApplication, QWidget, QSizePolicy
@@ -52,6 +52,7 @@ class Speedometer(QWidget):
         self.anim_reset.setDuration(500)
         self.anim_reset.setEndValue(0)
     
+    @pyqtSlot(float)
     def setSpeed(self, speed):
         self.speed = speed
         self.power = 100.0 * (self.speed-self.min_value)/(self.max_value-self.min_value)

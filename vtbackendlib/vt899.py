@@ -38,6 +38,7 @@ class Vt899:
     def __init__(self):
         self._MMAP_FILE = './vtbackendlib/vt899-{}_mmap_file.bin'
         self._RAW_BIN = '/tmp/chan1.bin'
+        self._sigP_BIN = '/tmp/chan1_SigP.bin'  # signal power. only a 4B floating number
         self._N_SAMPLE = 0
         self.CommandSet = {
              'query':{'hello':'return hello this is VT899. For testing connectivity'},
@@ -82,6 +83,8 @@ class Vt899:
             precision floting points data (2000 bytes in total)'
             self.CommandSet['query_bin']['getCorr 1570404'] = \
             'Get corr_result_list. For debugging use.'
+            self.CommandSet['query_bin']['getSigP 1'] = \
+            'Get signal power (a 1 bytes int8 number between 0-128)'
             self.CommandSet['query_bin']['getFrame 786432'] = \
             'Get re-sampled frame. 196608 samples (4 bytes per sample).'
         else:
@@ -95,7 +98,7 @@ class Vt899:
         
         # run the vt899-get-sample.py script.
         if sim_flag:  # for simulation, run the fake data capturing
-            script_arg = ['-s', '-p']
+            script_arg = ['-s']  # '-p'
         else:
             script_arg = []
             # shutdown firewall and initialize the amc590 ADC card.
@@ -155,6 +158,10 @@ class Vt899:
             else:
                 print('Warning: corr_result is not present!')
                 result = sock.sendall(b'Corr_result is not available.')
+        elif (command == 'getSigP 1'):
+            with open(self._sigP_BIN, 'rb') as f:
+                result = sock.sendfile(f)
+
         elif (command == 'getFrame 786432'):
             if hasattr(self, 'prmbl_int'):  # make sure Prmbl was updated
                 with open(self._MMAP_FILE, 'r') as f:

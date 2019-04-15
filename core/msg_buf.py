@@ -13,32 +13,55 @@ class SigWrapper(QObject):
     
 
 class MessageBuf:
-    """ Buffer info/warning/error generated during device operation. """
+    """ Buffer info/warning/error generated during device operation.
     
-    def __init__(self, histlim = 50, msg_src = ''):
+    This class can be instantiated in any device object to act as a logger
+    as well as a message channel to forwared messages to a Qt GUI.
+    """
+    
+    def __init__(self, histlim = 50, msg_src = '', qtGui = True,
+                 gui_verbos=(1,1,1)):
+        """ 
+        Arguments:
+            histlim - Storage depth. No more history logged beyond histlim.
+            msg_src - The name of the device.
+            qtGui - global flag to indicate whether messages should be 
+                    forwarded to a PyQt based GUI app. Each specific message
+                    type generated in warning/error/info function also has the
+                    `gui` argument to achieve sub-level control.
+            gui_verbos - a tuple with three numbers correponding to verbosity
+                         level of GUI message forwarding. e.g. default (1,1,1)
+                         means all messages forwarded; (0,1,1) ignores Info.
+        """
         self.current_msg = ''
         self.history_msgs = []
         self.hist_lim = histlim
         self._sgnl_wrapper = SigWrapper()
         self.ms = msg_src  # source of message
+        self.qtGui = qtGui
+        self.gui_verbos = gui_verbos
         
-    def _msg_commen_op(self, stdout):
+    def _msg_commen_op(self, stdout, gui):
         self._push_msg_hist()
-        self._send_gui_msg()
+        if (gui and self.qtGui):
+            self._send_gui_msg()
         if stdout:
             print(self.current_msg)
     
-    def warning(self, warning_str, stdout=True):
-        self.current_msg = 'WARNING: {} ({})'.format(warning_str, self.ms)
-        self._msg_commen_op(stdout)
-        
-    def error(self, error_str, stdout=True):
-        self.current_msg = 'ERROR: {} ({})'.format(error_str, self.ms)
-        self._msg_commen_op(stdout)
+    def set_gui_verbos(self, x, y, z):
+        self.gui_verbos = (x,y,z)
     
-    def info(self, info_str, stdout=True):
+    def warning(self, warning_str, stdout=True, gui=True):
+        self.current_msg = 'WARNING: {} ({})'.format(warning_str, self.ms)
+        self._msg_commen_op(stdout, self.gui_verbos[1])
+        
+    def error(self, error_str, stdout=True, gui=True):
+        self.current_msg = 'ERROR: {} ({})'.format(error_str, self.ms)
+        self._msg_commen_op(stdout, self.gui_verbos[2])
+    
+    def info(self, info_str, stdout=True, gui=True):
         self.current_msg = 'INFO: {} ({})'.format(info_str, self.ms)
-        self._msg_commen_op(stdout)
+        self._msg_commen_op(stdout, self.gui_verbos[0])
 
     def _send_gui_msg(self):
         self._sgnl_wrapper.msg_sgnl.emit(self.current_msg)

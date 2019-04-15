@@ -23,7 +23,7 @@ ServerAddr = "172.24.145.24", 9998
 
 class demo_backend_device(vt_device.VT_Device):
     def __init__(self, devname, addr, preamble_int, frame_len, symbol_rate, sample_rate):
-        vt_device.VT_Device.__init__(self, devname)
+        vt_device.VT_Device.__init__(self, devname, has_gui=True)
         self.set_net_addr(addr)
         self.preamble_int = preamble_int
         self.dmt_demod = dmt.DmtDeMod(samples = np.zeros(2*len(preamble_int)),

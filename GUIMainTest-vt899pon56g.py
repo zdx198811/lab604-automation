@@ -19,7 +19,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsScene, \
 from PyQt5.QtGui import QBrush, QPen, QPainter, QPixmap, QFont, QColor, QIcon
 from PyQt5.QtCore import (Qt, QObject, QPointF, QSize, QRect, QEasingCurve,
         QPropertyAnimation, pyqtProperty, pyqtSignal, QEvent, QStateMachine, 
-        QSignalTransition, QState)
+        QSignalTransition, QState, QTimer)
 from vtbackendlib.vt899 import extract_frame, resample_symbols
 import numpy as np
 import core.vt_device as vt_device
@@ -27,31 +27,61 @@ from core.ook_lib import OOK_signal
 from core.ks_device import M8195A
 from guiunits.connectbutton import ConnectBtn
 from guiunits.speedometer import Speedometer
-from guiunits.mlpplotwidget import pon56gDemoPlot
+from guiunits.mlpplotwidget import pon56gDemoBerPlot, pon56gDemoMsePlot
+from guiunits.pon56gDemoNNTrainingOutput_s import training_console_output
 import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset
 
-############## Debugging ##################
+############## for Debugging ################
 _SIM = True
-###########################################
 
+
+############ global variables ###############
 VT899Addr = "10.242.13.34", 9998
 M8195Addr = "10.242.13.77"
+
 cwd = getcwd()
 sample_folder = cwd+'\\vtbackendlib\\0726vt899pon56g\\'
 
+csvpath = 'D:\\PythonScripts\\lab604-automation\\vtbackendlib\\0726vt899pon56g\\'
+frame_len = 196608
+ook_preamble = OOK_signal(load_file= csvpath+'Jul 6_1741preamble.csv')
+ook_prmlb = ook_preamble.nrz(dtype = 'int8')
+globalTrainset = OOK_signal()
+if not _SIM:  #
+    print('Loading data ..........')
+    globalTrainset.append(OOK_signal(load_file=csvpath+'Jul 9_0841train.csv'))
+    print('25% done ...')
+    globalTrainset.append(OOK_signal(load_file=csvpath+'Jul 9_0842train.csv'))
+    print('50% done ...')
+    globalTrainset.append(OOK_signal(load_file=csvpath+'Jul 9_0843train.csv'))
+    print('75% done ...')
+    globalTrainset.append(OOK_signal(load_file=csvpath+'Jul 9_0845train.csv'))
+    print('OK!\n')
+
+
+#    vt899.trainset = globalTrainset
+#    vt899.config('prmbl500', ook_prmlb.tobytes())
+
 class vtdev(vt_device.VT_Device):
-    def __init__(self, devname, addr, frame_len, symbol_rate):
-        vt_device.VT_Device.__init__(self, devname)
+    
+    # algorithm state coding for self.algo_state:
+    Init = 0    # before setting preamble (cannot extract frame)
+    NoNN = 1    # can extract frame, but NN not trained
+    YesNN = 2   # NN trained
+    
+    def __init__(self, devname, frame_len=0, symbol_rate=0, addr=None, gui=True):
+        vt_device.VT_Device.__init__(self, devname, gui)
         self.set_net_addr(addr)
         self.frame_len = frame_len
         self.n_prmbl = 500  # n_payload=195608. see work notebook-2 18-07-05
         self.n_symbol_test = 10000
         self.symbol_rate = symbol_rate
-        
+        self.algo_state = vtdev.Init
+        self.set_gui_verbos(1,1,1)
         # neural network algorithm related attributes
         self.trainset = OOK_signal()
         self.trainset_rx = np.array([])
@@ -107,7 +137,7 @@ class vtdev(vt_device.VT_Device):
                 running_loss += loss.item()
                 # print statistics
                 if (i % 299 == 0):    # print every 300 mini-batches
-                    print('epoch %d-%d, loss: %.3f' %
+                    self.msgbf.info('epoch %d-%d, loss: %.3f' %
                           (epoch + 1, i+1, running_loss / 299))
                     running_loss = 0.0
             correct = 0
@@ -132,12 +162,12 @@ class vtdev(vt_device.VT_Device):
                     if predicted == labels.item():
                         correct += 1
                     else:
-                        print(i,
+                        self.msgbf.info('{0}{1}{2}{3}{4}{5}{6}{7}{8}{9}'.format(i,
                               '\n\tinput=',inputs,'\n', 
                               '\tlabel=', labels, '\n',
-                              '\toutput=',outputs.item(), predicted)
+                              '\toutput=',outputs.item(), predicted))
                         pass
-            print('Accuracy on %d test data: %.4f %%' % (total, 100*correct/total))
+            self.msgbf.info('Accuracy on %d test data: %.4f %%' % (total, 100*correct/total))
         #    plt.hist(testset_outputs_dfnn,bins=100)
         #    plt.show()
             if accuracy_waiting_cnt>1:
@@ -148,7 +178,9 @@ class vtdev(vt_device.VT_Device):
                 accuracy_waiting_cnt = 0
             else:
                 accuracy_waiting_cnt+=1
-
+        
+        self.algo_state = vtdev.YesNN
+        
     def run_inference(self, testset_nrz, rx_symbol):
         """ Run inference with the trained neural network.
         
@@ -183,12 +215,12 @@ class vtdev(vt_device.VT_Device):
                 if predicted == labels.item():
                     correct += 1
                 else:
-                    print(i,
+                    self.msgbf.info(i,
                           '\n\tinput=',inputs,'\n', 
                           '\tlabel=', labels, '\n',
                           '\toutput=',outputs.item(),'-->', predicted)
                     pass
-        print('BER on %d test data: %.4f %%' % (total, 100*(1-correct/total)))
+        self.msgbf.info('BER on %d test data: %.4f %%' % (total, 100*(1-correct/total)))
 
     def hd_decision(self, testset_bits, rx_symbol):
         """ recover payload bits using hard decision to comapre BER. """
@@ -199,8 +231,18 @@ class vtdev(vt_device.VT_Device):
                 n_error+=1
                 #print(i,rx_symbol[i],'->',trainset_nrz[i])
         BER_hard = n_error/rx_hard.data_len
-        print('BER=%.3f, accurate=%.1f %%' % (BER_hard,100*(1-BER_hard)))
-
+        self.msgbf.info('BER=%.3f, accurate=%.1f %%' % (BER_hard,100*(1-BER_hard)))
+    
+    def calcEexpectedGbps(self, ber, maxGbps=60):
+        """ calculate an 'achievable bit rate' based on a BER value"""
+        if ber>0.8:  # abnormal
+            expectedGbps = 0
+        elif ber>0.001:  # NoNN
+            expectedGbps = 14-ber*10
+        else:  # YesNN
+            expectedGbps = -152.073*ber + 50.018
+        return expectedGbps
+    
     def save_trained_nn(self, nn_save_path):
         torch.save(self.neuralnet, nn_save_path)
         
@@ -259,7 +301,7 @@ class vtdev(vt_device.VT_Device):
                     features.append(np.append(temp_x, (y[i+label_pos-1]+y[i+label_pos-2])/2))
                 labels.append((y[i+label_pos]+y[i+label_pos-1])/2)
             return(np.array(features),np.array(labels))
-
+        
 
 class awg(M8195A):
     def __init__(self, addr):
@@ -398,7 +440,7 @@ class AppWindow(QMainWindow):
         
         self.initGeometries()
         self.initConnections()
-        #self.fanAnim.start()
+        # self.fanAnim.start()
         self.show()
         
     def initGeometries(self):
@@ -437,7 +479,7 @@ class AppWindow(QMainWindow):
         
         title = QLabel(parent=wdgt)
         title.setText("Growing Demand for Access")
-        font = QFont("Nokia Pure Text Light", 25)
+        font = QFont("Nokia Pure Text Light", 25, QFont.Bold)
         title.setFont(font)
         # title.setFrameStyle(22)  # show border
         title.setAlignment(Qt.AlignHCenter | Qt.AlignCenter)
@@ -525,7 +567,7 @@ class AppWindow(QMainWindow):
         detailFigure_2 = detailFigure_2_Qobj.pixmap_item
         detailFigure_1.mousePressEvent = clickEventHandler
         title = QGraphicsTextItem("Our Innovation/Contribution")
-        font = QFont("Nokia Pure Text Light", 25)
+        font = QFont("Nokia Pure Text Light", 25, QFont.Bold)
         title.setFont(font)
         title.setDefaultTextColor(self.nokia_blue)
         fan = Fan()  # a QObject which wraps a QGraphicsItem inside
@@ -562,33 +604,49 @@ class AppWindow(QMainWindow):
         wdgt = QWidget(parent=self)
         
         title = QLabel(parent=wdgt)
-        title.setText("Prototype Real-time Monitor")
-        font = QFont("Nokia Pure Text Light", 25)
+        title.setText("Prototype Monitor")
+        font = QFont("Nokia Pure Text Light", 25, QFont.Bold)
         title.setFont(font)
         # title.setFrameStyle(22)  # show border
         title.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
         palette = self.palette()
         palette.setColor(self.foregroundRole(), self.nokia_blue)
         title.setPalette(palette)
-        title.setGeometry(20, 10, 490, 69)
+        title.setGeometry(50, 10, 300, 69)
         
         meter = Speedometer(title='Data Rate', unit = 'Gbps',
-                            min_value=0, max_value=60, parent=wdgt)
-        meter.setGeometry(490, 60, 320, 280)
+                            min_value=0, max_value=55, parent=wdgt)
+        meter.setGeometry(40, 80, 320, 270)
         
-        berPlot = pon56gDemoPlot(parent=wdgt, width=5, height=4, tight_layout=True,
-                                 dpi=100, datadevice=self.datadevice)
-        berPlot.setGeometry(40, 70, 440, 280)
+        initMeterAnim = QPropertyAnimation(meter, b"value")
+        initMeterAnim.setStartValue(0)
+        initMeterAnim.setEndValue(12)
+        initMeterAnim.setDuration(500)
 
+        boostMeterAnim = QPropertyAnimation(meter, b"value")
+        boostMeterAnim.setStartValue(12)
+        boostMeterAnim.setEndValue(50)
+        boostMeterAnim.setDuration(1000)
+
+        berPlot = pon56gDemoBerPlot(parent=wdgt, width=3.5, height=2, tight_layout=True,
+                                 dpi=100, datadevice=self.datadevice)
+        berPlot.setGeometry(405, 25, 420, 170)
+        
+        msePlot = pon56gDemoMsePlot(parent=wdgt, width=3.5, height=2, tight_layout=True,
+                                 dpi=100)
+        msePlot.setGeometry(405, 195, 420, 170)
+        
         self.updateTimer = QTimer()
-        self.updateTimer.setInterval(1500)
+        self.updateTimer.setInterval(2000)
 
         ConsoleGroupBox = QGroupBox("Device Control Panel", parent=wdgt)
-        ConsoleGroupBox.setGeometry(820, 18, 420, 340)
+        ConsoleGroupBox.setGeometry(870, 22, 370, 340)
         Console = QTextBrowser()
         AddrEdit = QLineEdit()
+        # AddrEdit.setText('10.242.13.34')
+        AddrEdit.setText('192.168.1.4')
         ConnectButton = ConnectBtn(AddrEdit)
-        ResetNNButton = QPushButton("Reset Algorithm")
+        ResetNNButton = QPushButton("Reset")
         TrainButton = QPushButton("Train NN")
         QuitButton = QPushButton("Quit")
         layout = QVBoxLayout()
@@ -608,13 +666,17 @@ class AppWindow(QMainWindow):
         
         wdgt.setStyleSheet("background-color: rgb(242, 242, 242);")
         
-        self.TrainButton = TrainButton
         self.AddrEdit = AddrEdit
         self.Console = Console
+        self.meter = meter
+        self.initMeterAnim = initMeterAnim
+        self.boostMeterAnim = boostMeterAnim
         self.ConnectButton = ConnectButton
         self.TrainButton = TrainButton
         self.QuitButton = QuitButton
         self.ResetNNButton = ResetNNButton
+        self.berPlot = berPlot
+        self.msePlot = msePlot
         return wdgt
         
     def bkgrndGroupSM(self):
@@ -638,9 +700,11 @@ class AppWindow(QMainWindow):
         if self._detailFigure_2_state == 0:
             self.NNfigure_fadeIn.start()
             self._detailFigure_2_state = 1
+            self.fanAnim.start()
         else:
             self.NNfigure_fadeOut.start()
             self._detailFigure_2_state = 0
+            self.fanAnim.stop()
     
     def initConnections(self):
         self.bkgrndSlider.clicked.connect(self.bkgrndGroupSM)
@@ -649,6 +713,11 @@ class AppWindow(QMainWindow):
         self.AddrEdit.returnPressed.connect(self.openVTdevice)
         self.QuitButton.clicked.connect(self.closeEvent)
         self.datadevice.guisgnl.connect(self.Console.append)
+        self.updateTimer.timeout.connect(self.berPlot.update_figure)
+        self.berPlot.plot2Console.connect(self.Console.append)
+        self.berPlot.plot2Meter.connect(self.meter.setSpeed)
+        # self.TrainButton.clicked.connect(self.trainNN)  # train NN
+        self.TrainButton.clicked.connect(self.trainNN_temp)  # train NN, just GUI effect
         
     def openVTdevice(self):
         ipaddr = self.AddrEdit.text()
@@ -656,37 +725,95 @@ class AppWindow(QMainWindow):
         self.datadevice.set_net_addr((ipaddr,9998))
         self.Console.append('connecting to'+ ipaddr)
         if 'Connected' in self.datadevice.open_device().split():
-            self.
+            self.datadevice.query('hello')
+            self.Console.append('Set preamble ...')
+            self.setPreamble()
+    
+    def setPreamble(self):
+        self.datadevice.set_preamble(ook_prmlb)  # local int preamble record
+        #self.datadevice.config('prmbl500', ook_prmlb.tobytes())  # write the same to remote backend
+        self.datadevice.trainset = globalTrainset
+        sleep(2)  # the backend need several seconds to do resample & correlation
+        #ref_bin = self.datadevice.query_bin('getRef 2000')
+        #vt899.preamble_wave = np.array(memoryview(ref_bin).cast('f').tolist())
+        self.Console.append('Preamble synchronization Done! ')
+        self.datadevice.algo_state = self.datadevice.NoNN
+        self.initMeterAnim.finished.connect(self.updateTimer.start)
+        self.initMeterAnim.start()
 
-    def fileQuit(self):
+        
+    def trainNN(self):
+        # self.fanAnim.start()  # start fan animation to indicate neural network
+        if ((self.datadevice.open_state == 0) or (self.datadevice.algo_state==self.datadevice.Init)):
+            self.Console.append('Device not opend, or preamble not set. Cannot procced.')
+        else:
+            frame_len = self.datadevice.frame_len
+            trainset_rx = []
+            if not _SIM:
+                for i in range(4):
+                    print(slice(i*frame_len, (i+1)*frame_len))
+                    data_for_train = globalTrainset.take(slice(i*frame_len, (i+1)*frame_len))
+                    self.awg.send_binary_port1(250*(data_for_train-0.5))
+                    sleep(2)  # make sure the ADC has captured the new waveform
+                    frame_bin = self.datadevice.query_bin('getFrame 786432')
+                    frame = list(memoryview(frame_bin).cast('f').tolist())
+                    trainset_rx.extend(frame)
+            else:
+                for i in range(4):
+                    path_str = sample_folder+'chan1-{0}.bin'.format(i)
+                    samples_all = normalize_rxsymbols(read_sample_bin_file(path_str))
+                    (samples_frame, cl) = extract_frame(samples_all, 196608, ook_preamble.nrz())
+                    trainset_rx.extend(resample_symbols(samples_frame, self.datadevice.preamble_wave))
+            self.datadevice.train_nn(np.array(trainset_rx))
+
+    def trainNN_temp(self):
+        # not really running NN, in order to test pure GUI functions
+        self.updateTimer.stop()
+        self.msePlot.reset()
+        if ((self.datadevice.open_state == 0) or (self.datadevice.algo_state==self.datadevice.Init)):
+            self.Console.append('Device not opend, or preamble not set. Cannot procced.')
+        else:
+            texts = training_console_output[:]
+            tempTimer = QTimer()
+            tempTimer.setInterval(30)
+            def printTrainingOutput():
+                if texts:
+                    text_item = texts.pop(0)
+                    self.Console.append(text_item)
+                    if text_item[-5:]=='demo)':
+                        mse = float(text_item[-20:-15])
+                        self.msePlot.update_figure(mse)
+                else:
+                    tempTimer.stop()
+                    self.datadevice.algo_state = self.datadevice.YesNN
+                    self.boostMeterAnim.finished.connect(self.updateTimer.start)
+                    self.boostMeterAnim.start()
+                    #self.updateTimer.start()
+            tempTimer.timeout.connect(printTrainingOutput)
+            tempTimer.start()
+
+    def cleanUpAndQuit(self):
         # close the VT_Device to inform the backend ending the TCP session.
         self.datadevice.close_device()
         self.close()
 
     def closeEvent(self, ce):
-        self.fileQuit()
+        self.cleanUpAndQuit()
+
 
 if __name__ == '__main__':
-    csvpath = 'D:\\PythonScripts\\lab604-automation\\vtbackendlib\\0726vt899pon56g\\'
-    frame_len = 196608
-    
-#    print('Loading data.............')
-#    ook_preamble = OOK_signal(load_file= csvpath+'Jul 6_1741preamble.csv')
-#    trainset = OOK_signal()
-#    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0841train.csv'))
-#    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0842train.csv'))
-#    print('50% done......')
-#    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0843train.csv'))
-#    trainset.append(OOK_signal(load_file=csvpath+'Jul 9_0845train.csv'))
-#    print('OK!')
-    
+
     if not _SIM:
-        # initiate AWG
+        print('Initializing AWG ...')
         m8195a = awg(M8195Addr)
+        # send a frame containing preamble
+        data_for_prmbl_sync = globalTrainset.take(slice(frame_len))
+        awg.send_binary_port1(250*(data_for_prmbl_sync-0.5))
+        sleep(1)  # make sure the ADC has captured the new waveform
     else:
         m8195a = None
     
-    vt899 = vtdev("vt899pondemo", VT899Addr, frame_len, 56)
+    vt899 = vtdev("vt899pondemo", frame_len=frame_len, symbol_rate=56, gui=True)
     
     pon56Gdemo = QApplication(sys.argv)
     window = AppWindow(datadevice=vt899, awg=m8195a)
@@ -694,44 +821,16 @@ if __name__ == '__main__':
     print("close device")
     vt899.close_device()
     
-    
 
-   
-#    if not _SIM:
-#        # send a frame containing preamble
-#        data_for_prmbl_sync = trainset.take(slice(frame_len))
-#        awg.send_binary_port1(250*(data_for_prmbl_sync-0.5))
-#        sleep(1)  # make sure the ADC has captured the new waveform
-#        
-#    ook_prmlb = ook_preamble.nrz(dtype = 'int8')
-#    vt899.set_preamble(ook_prmlb)
-#    vt899.trainset = trainset
-#    vt899.config('prmbl500', ook_prmlb.tobytes())
-#    sleep(2)  # the backend need several seconds to do resample & correlation
-#    ref_bin = vt899.query_bin('getRef 2000')
-#    vt899.preamble_wave = np.array(memoryview(ref_bin).cast('f').tolist())
+    ook_preamble = OOK_signal(load_file= csvpath+'Jul 6_1741preamble.csv')
+    ook_prmlb = ook_preamble.nrz(dtype = 'int8')
+
+
 #   
 ##    corr_result = np.array(memoryview(vt899.query_bin('getCorr 1570404')).cast('f').tolist())
 ##    plt.plot(corr_result)
-#    
-#    trainset_rx = []
-#    if not _SIM:
-#        for i in range(4):
-#            print(slice(i*frame_len, (i+1)*frame_len))
-#            data_for_train = trainset.take(slice(i*frame_len, (i+1)*frame_len))
-#            awg.send_binary_port1(250*(data_for_train-0.5))
-#            sleep(2)  # make sure the ADC has captured the new waveform
-#            frame_bin = vt899.query_bin('getFrame 786432')
-#            frame = list(memoryview(frame_bin).cast('f').tolist())
-#            trainset_rx.extend(frame)
-#    else:
-#        for i in range(4):
-#            path_str = sample_folder+'chan1-{0}.bin'.format(i)
-#            samples_all = normalize_rxsymbols(read_sample_bin_file(path_str))
-#            (samples_frame, cl) = extract_frame(samples_all, 196608, ook_preamble.nrz())
-#            trainset_rx.extend(resample_symbols(samples_frame, vt899.preamble_wave))
-#       
-#    vt899.train_nn(np.array(trainset_rx))
+
+
 #    
 #    if not _SIM:
 #        ookrand = OOK_signal()
@@ -742,7 +841,7 @@ if __name__ == '__main__':
 #        rx_bin = vt899.query_bin('getFrame 786432')
 #        rx_frame = list(memoryview(rx_bin).cast('f').tolist())
 #    else:
-#        ook_rand = OOK_signal(data_ref=trainset.take(slice(0*frame_len, 1*frame_len)))
+#        ook_rand = OOK_signal(data_ref=globalTrainset.take(slice(0*frame_len, 1*frame_len)))
 #        rx_all = normalize_rxsymbols(read_sample_bin_file(csvpath+'chan1-0.bin'))
 #        (rx_orign, cl) = extract_frame(rx_all, 196608, ook_preamble.nrz())
 #        rx_frame = resample_symbols(rx_orign, vt899.preamble_wave)
@@ -753,7 +852,6 @@ if __name__ == '__main__':
 #    vt899.close_device()
 #    
 #    
-
 
 
 
