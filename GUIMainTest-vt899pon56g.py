@@ -69,9 +69,10 @@ if not _SIM:  #
 class vtdev(vt_device.VT_Device):
     
     # algorithm state coding for self.algo_state:
-    Init = 0    # before setting preamble (cannot extract frame)
-    NoNN = 1    # can extract frame, but NN not trained
-    YesNN = 2   # NN trained
+    Init = 0     # before setting preamble (cannot extract frame)
+    NoNN = 1     # can extract frame, but NN not trained
+    YesNN = 2    # NN trained
+    TranSit = 3  # A intermediate state: just after NN trained, but speedometer animation not done
     
     def __init__(self, devname, frame_len=0, symbol_rate=0, addr=None, gui=True):
         vt_device.VT_Device.__init__(self, devname, gui)
@@ -426,6 +427,7 @@ class AppWindow(QMainWindow):
         self.setStyleSheet("background-color: white;")
         self._detailFigure_2ClickedSigWrapper = itemClickedSgnlWrapper()
         self.detailFigure_2Clicked = self._detailFigure_2ClickedSigWrapper.sgnl
+        self.setFocusPolicy(Qt.StrongFocus)
         self.initWindow()
         
     def initWindow(self):
@@ -453,14 +455,14 @@ class AppWindow(QMainWindow):
         wdgt = QWidget(parent=self)
         mainTitle = QLabel(parent=wdgt)
         mainTitle.setText("Ultra-Fast Fiber Access with Intelligent PHY")
-        font = QFont("Nokia Pure Text Light", 30, QFont.Bold)
+        font = QFont("Nokia Pure Text Light", 35, QFont.Bold)
         mainTitle.setFont(font)
         # mainTitle.setFrameStyle(22)  # show border
         mainTitle.setAlignment(Qt.AlignRight | Qt.AlignCenter)
         palette = self.palette()
         palette.setColor(self.foregroundRole(), self.nokia_blue)
         mainTitle.setPalette(palette)
-        mainTitle.setGeometry(0,0,880, 69)
+        mainTitle.setGeometry(0,0,950, 69)
         
         subTitle = QLabel(parent=wdgt)
         subTitle.setText("—— Enabling 50Gbps over 10G-class devices")
@@ -471,7 +473,7 @@ class AppWindow(QMainWindow):
         palette = self.palette()
         palette.setColor(self.foregroundRole(), self.nokia_blue)
         subTitle.setPalette(palette)
-        subTitle.setGeometry(900,16,600, 40)
+        subTitle.setGeometry(960,16,600, 40)
         return wdgt
 
     def initbkgrndgroup(self):
@@ -626,7 +628,8 @@ class AppWindow(QMainWindow):
         boostMeterAnim = QPropertyAnimation(meter, b"value")
         boostMeterAnim.setStartValue(12)
         boostMeterAnim.setEndValue(50)
-        boostMeterAnim.setDuration(1000)
+        boostMeterAnim.setDuration(3000)
+        boostMeterAnim.setEasingCurve(QEasingCurve.InQuint)
 
         berPlot = pon56gDemoBerPlot(parent=wdgt, width=3.5, height=2, tight_layout=True,
                                  dpi=100, datadevice=self.datadevice)
@@ -637,7 +640,7 @@ class AppWindow(QMainWindow):
         msePlot.setGeometry(405, 195, 420, 170)
         
         self.updateTimer = QTimer()
-        self.updateTimer.setInterval(2000)
+        self.updateTimer.setInterval(1100)
 
         ConsoleGroupBox = QGroupBox("Device Control Panel", parent=wdgt)
         ConsoleGroupBox.setGeometry(870, 22, 370, 340)
@@ -718,6 +721,7 @@ class AppWindow(QMainWindow):
         self.berPlot.plot2Meter.connect(self.meter.setSpeed)
         # self.TrainButton.clicked.connect(self.trainNN)  # train NN
         self.TrainButton.clicked.connect(self.trainNN_temp)  # train NN, just GUI effect
+        self.ResetNNButton.clicked.connect(self.resetPlot)
         
     def openVTdevice(self):
         ipaddr = self.AddrEdit.text()
@@ -785,18 +789,43 @@ class AppWindow(QMainWindow):
                         self.msePlot.update_figure(mse)
                 else:
                     tempTimer.stop()
-                    self.datadevice.algo_state = self.datadevice.YesNN
-                    self.boostMeterAnim.finished.connect(self.updateTimer.start)
+                    self.datadevice.algo_state = self.datadevice.TranSit
+                    self.updateTimer.start()
+                    self.boostMeterAnim.finished.connect(self.changeAlgoState)
                     self.boostMeterAnim.start()
                     #self.updateTimer.start()
             tempTimer.timeout.connect(printTrainingOutput)
             tempTimer.start()
 
+    def resetPlot(self):
+        # clear the MSE plot, and turn the BER & speedometer state back to 12.5G
+        self.updateTimer.stop()
+        self.datadevice.algo_state = self.datadevice.NoNN
+        self.msePlot.reset()
+        self.updateTimer.start()
+        
+    def changeAlgoState(self):
+        self.datadevice.algo_state = self.datadevice.YesNN
+        
     def cleanUpAndQuit(self):
         # close the VT_Device to inform the backend ending the TCP session.
         self.datadevice.close_device()
         self.close()
-
+    
+    def keyPressEvent(self, KEvent):
+        k = KEvent.key()
+        print(k,'  pressed')
+        if k==Qt.Key_Q:
+            self.bkgrndSlider.click()
+        elif k==Qt.Key_W:
+            self.detailFigure_2Clicked.emit()
+        elif k==Qt.Key_T:
+            self.TrainButton.click()
+        elif k==Qt.Key_R:
+            self.ResetNNButton.click()
+        else:
+            pass
+    
     def closeEvent(self, ce):
         self.cleanUpAndQuit()
 

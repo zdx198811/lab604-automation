@@ -139,7 +139,7 @@ class pon56gDemoMsePlot(MplCanvas):
         #self.axes.set_ylim(bottom=0.001)
         self.axes.grid(True, which='both')
         self.axes.fill_between(np.arange(len(self.mse_hist)),self.mse_hist,
-                               facecolor='blue', alpha=0.7, label='Mean Square Error')
+                               facecolor='blue', alpha=0.7, label='Learning process (MSE)')
         self.axes.legend(loc='upper center', shadow=True )  # fontsize='x-large'
         self.axes.set_yscale('log')
         self.draw()
@@ -194,42 +194,47 @@ class pon56gDemoBerPlot(MplCanvas):
         if (self.datadevice.open_state == 1):
             #response = self.datadevice.query_bin('getFrame 786432')
             #alldata = extract_samples_float(response)
+            if (self.update_cnt % 2) == 0:
+                pad = '..................'
+            else:
+                pad = ''
             self.send_console_output(
-             'update figure: {}th time. BER={:.2E}\ngetFrame 786432'.format(self.update_cnt, ber))
+             'update figure: {}th time. BER={:.2E}{}\ngetFrame 786432'.format(self.update_cnt, ber, pad))
         else:
             self.send_console_output('ERROR: data device not opend')
             # raise ValueError('data device has not been opend')
 
         expectedGbps = self.datadevice.calcEexpectedGbps(ber)
-        self.send_meter_value(expectedGbps)
+        # print('algo state:{}'.format(self.datadevice.algo_state))
+        if self.datadevice.algo_state == self.datadevice.TranSit:
+            pass
+        else:
+            self.send_meter_value(expectedGbps)
         
     def update_figure(self):
         response = self.datadevice.query_bin('getSigP 1')
         if (len(response) != 1):
             sig_p = 0
         else:
-            sig_p = np.array(response, dtype='int8')[0]
+            sig_p = int(np.array(response, dtype='int8')[0])
             print('mean signal amplitude: {}'.format(sig_p))
             
         if self.datadevice.algo_state == self.datadevice.Init:
             pass
         
         elif self.datadevice.algo_state == self.datadevice.NoNN:
-            if sig_p > 10:  # make sure there is optical signal received
+            if sig_p > 1:  # make sure there is optical signal received
                 ber_base = 0.25
             else:
                 ber_base = 1
             ber_jitter = np.random.randn()/25
             self.plotDraw(ber_base, ber_jitter)
             
-        elif self.datadevice.algo_state == self.datadevice.YesNN:
-            
-            if sig_p > 10: # make sure there is optical signal received
+        else: # algo_state == YesNN or TranSit:
+            if sig_p > 1: # make sure there is optical signal received
                 ber_base = 0.00082
             else:
                 ber_base = 1
             ber_jitter = np.mean(np.random.randn(100)/1000)
             self.plotDraw(ber_base, ber_jitter)
             
-        else:
-            raise ValueError('algo_state ???')
