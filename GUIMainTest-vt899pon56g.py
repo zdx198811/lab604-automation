@@ -16,7 +16,8 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsScene, \
                 QPushButton, QLabel, QWidget, QGraphicsOpacityEffect, \
                 QGraphicsTextItem, QTextBrowser, QLineEdit, QGroupBox, \
                 QVBoxLayout, QGridLayout, QSlider
-from PyQt5.QtGui import QBrush, QPen, QPainter, QPixmap, QFont, QColor, QIcon
+from PyQt5.QtGui import ( QBrush, QPen, QPainter, QPixmap, QFont, QColor,
+                         QIcon, QTextDocument)
 from PyQt5.QtCore import (Qt, QObject, QPointF, QSize, QRect, QEasingCurve,
         QPropertyAnimation, pyqtProperty, pyqtSignal, QEvent, QStateMachine, 
         QSignalTransition, QState, QTimer)
@@ -418,7 +419,7 @@ class AppWindow(QMainWindow):
         self.datadevice = datadevice
         self.awg = awg
         self.nokia_blue = QColor(18, 65, 145)
-        self.title = "High-speed PON demo"
+        self.title = "High-speed PON demo"  # "超高速光接入网" 
         self.geo = {
             'top'   : 30,
             'left'  : 0,
@@ -429,6 +430,7 @@ class AppWindow(QMainWindow):
         self.detailFigure_2Clicked = self._detailFigure_2ClickedSigWrapper.sgnl
         self.setFocusPolicy(Qt.StrongFocus)
         self.initWindow()
+        self._lang = 'en'  # language. Changed on pressing "L" key
         
     def initWindow(self):
         self.setWindowTitle(self.title)
@@ -454,11 +456,11 @@ class AppWindow(QMainWindow):
     def inittitlebar(self):
         wdgt = QWidget(parent=self)
         mainTitle = QLabel(parent=wdgt)
-        mainTitle.setText("Ultra-Fast Fiber Access with Intelligent PHY")
+        mainTitle.setText("Ultra-Fast Fiber Access with Intelligent PHY") # 
         font = QFont("Nokia Pure Text Light", 35, QFont.Bold)
         mainTitle.setFont(font)
         # mainTitle.setFrameStyle(22)  # show border
-        mainTitle.setAlignment(Qt.AlignRight | Qt.AlignCenter)
+        mainTitle.setAlignment(Qt.AlignHCenter | Qt.AlignCenter) # Qt.AlignRight
         palette = self.palette()
         palette.setColor(self.foregroundRole(), self.nokia_blue)
         mainTitle.setPalette(palette)
@@ -474,6 +476,9 @@ class AppWindow(QMainWindow):
         palette.setColor(self.foregroundRole(), self.nokia_blue)
         subTitle.setPalette(palette)
         subTitle.setGeometry(960,16,600, 40)
+        
+        self.mainTitle = mainTitle
+        self.subTitle = subTitle
         return wdgt
 
     def initbkgrndgroup(self):
@@ -484,7 +489,7 @@ class AppWindow(QMainWindow):
         font = QFont("Nokia Pure Text Light", 25, QFont.Bold)
         title.setFont(font)
         # title.setFrameStyle(22)  # show border
-        title.setAlignment(Qt.AlignHCenter | Qt.AlignCenter)
+        title.setAlignment(Qt.AlignLeft | Qt.AlignCenter)  # Qt.AlignHCenter
         palette = self.palette()
         palette.setColor(self.foregroundRole(), self.nokia_blue)
         title.setPalette(palette)
@@ -544,6 +549,7 @@ class AppWindow(QMainWindow):
         
         wdgt.setStyleSheet("background-color: rgb(242, 242, 242);")
         
+        self.bkgrndTitle = title
         self.bkgrndSlider = bkgrndSlider
         self.sliderAnim_1 = sliderAnim_1
         self.sliderAnim_2 = sliderAnim_2
@@ -564,27 +570,44 @@ class AppWindow(QMainWindow):
             self.detailFigure_2Clicked.emit()
         
         detailFigure_1 = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_1.png'))
-        #detailFigure_2 = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_2.png'))
-        detailFigure_2_Qobj = fadingPic(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_2.png'))
+        detailFigure_2_Qobj = fadingPic(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_2_en.png'))
         detailFigure_2 = detailFigure_2_Qobj.pixmap_item
         detailFigure_1.mousePressEvent = clickEventHandler
         title = QGraphicsTextItem("Our Innovation/Contribution")
         font = QFont("Nokia Pure Text Light", 25, QFont.Bold)
         title.setFont(font)
         title.setDefaultTextColor(self.nokia_blue)
+
+        textItem1 = QGraphicsTextItem()
+        textItem1.setHtml('''<body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
+                          <div >10GHz</div>
+                          <div > Optics </div>
+                          </body>''')
+        textItem1.setTextWidth(80)
+        textItem2 = QGraphicsTextItem()
+        textItem2.setHtml('''<body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
+                          <div > 10GHz</div>
+                          <div > Optics </div>
+                          </body>''')
+        textItem2.setTextWidth(100)
+        
         fan = Fan()  # a QObject which wraps a QGraphicsItem inside
         
         scene = QGraphicsScene()
         scene.setSceneRect(0, 0, 1285, 420)
         scene.addItem(detailFigure_2)
         scene.addItem(detailFigure_1)
+        scene.addItem(textItem1)
+        scene.addItem(textItem2)
         scene.addItem(title)
         scene.addItem(fan.pixmap_item)
         
-        detailFigure_1.setPos(QPointF(28, 88))
+        detailFigure_1.setPos(QPointF(35, 88))
         detailFigure_2.setPos(QPointF(570, 40))
         detailFigure_2.setOpacity(0)  # hided at first
         title.setPos(QPointF(50,20))
+        textItem1.setPos(QPointF(40, 168))
+        textItem2.setPos(QPointF(361, 168))
         fan.pixmap_item.setPos(QPointF(456.5, 138))
         self.fanAnim = fan.fanAnimation()
         
@@ -595,6 +618,9 @@ class AppWindow(QMainWindow):
         view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         view.setRenderHint(QPainter.Antialiasing)      
         
+        self.detailGrpTextItem1 = textItem1
+        self.detailGrpTextItem2 = textItem2
+        self.detailFigTitle = title
         self.turbofan = fan
         self.NNfigure_fadeIn = detailFigure_2_Qobj.fadeIn()
         self.NNfigure_fadeOut = detailFigure_2_Qobj.fadeOut()
@@ -647,7 +673,7 @@ class AppWindow(QMainWindow):
         Console = QTextBrowser()
         AddrEdit = QLineEdit()
         # AddrEdit.setText('10.242.13.34')
-        AddrEdit.setText('192.168.1.4')
+        AddrEdit.setText('192.168.1.199')
         ConnectButton = ConnectBtn(AddrEdit)
         ResetNNButton = QPushButton("Reset")
         TrainButton = QPushButton("Train NN")
@@ -669,6 +695,7 @@ class AppWindow(QMainWindow):
         
         wdgt.setStyleSheet("background-color: rgb(242, 242, 242);")
         
+        self.prototypeTitle = title
         self.AddrEdit = AddrEdit
         self.Console = Console
         self.meter = meter
@@ -823,9 +850,50 @@ class AppWindow(QMainWindow):
             self.TrainButton.click()
         elif k==Qt.Key_R:
             self.ResetNNButton.click()
+        elif k==Qt.Key_L:
+            self.switchLang()
         else:
             pass
     
+    def switchLang(self):
+        if (self._lang == 'en'):
+            print("Switching language form EN to CN.")
+            self._lang = 'cn'
+            self.mainTitle.setText('''<div style="font-family:微软雅黑;margin-left:250px;">基于  <i>人工智能</i>  的‘超高速光接入’ </div>''')
+            self.subTitle.setText('''<div style="font-family:微软雅黑;"> ——50G光接入 </div> ''')
+            self.bkgrndTitle.setText("光接入的 ‘方案 vs 需求’")
+            self.detailFigTitle.setPlainText("颠覆式创新")
+            self.prototypeTitle.setText("硬件平台实时监控")
+            self.detailGrpTextItem1.setHtml('''
+                 <body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
+                 <div >10GHz</div>
+                 <div > <b>光器件</b> </div>
+                 </body>''')
+            self.detailGrpTextItem2.setHtml('''
+                 <body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
+                 <div > 10GHz</div>
+                 <div > <b>光器件</b> </div>
+                 </body>''')
+        else:
+            print("Switching language form CN to EN.")
+            self._lang = 'en'
+            self.mainTitle.setText("Ultra-Fast Fiber Access with Intelligent PHY")
+            self.subTitle.setText('''<div style="font-family:微软雅黑;"> ——50G光接入 </div> ''')
+            self.subTitle.setText("—— Enabling 50Gbps over 10G-class devices")
+            self.bkgrndTitle.setText("Growing Demand for Access")
+            self.prototypeTitle.setText("Prototype Monitor")
+            self.detailFigTitle.setPlainText("Our Innovation/Contribution")
+            self.detailGrpTextItem1.setHtml('''
+                 <body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
+                 <div >10GHz</div>
+                 <div > Optics </div>
+                 </body>''')
+            self.detailGrpTextItem2.setHtml('''
+                 <body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
+                 <div > 10GHz</div>
+                 <div > Optics </div>
+                 </body>''')
+                
     def closeEvent(self, ce):
         self.cleanUpAndQuit()
 
