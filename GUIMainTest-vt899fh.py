@@ -13,7 +13,7 @@ from locale import atoi
 import numpy as np
 import core.vt_device as vt_device
 import core.dmt_lib as dmt
-from guiunits.plotconstallation import MyDynamicMplCanvas
+from guiunits.mlpplotwidget import fhDemoPlot
 from guiunits.connectbutton import ConnectBtn
 from guiunits.ledpannel import LedPannel
 
@@ -23,7 +23,7 @@ ServerAddr = "172.24.145.24", 9998
 
 class demo_backend_device(vt_device.VT_Device):
     def __init__(self, devname, addr, preamble_int, frame_len, symbol_rate, sample_rate):
-        vt_device.VT_Device.__init__(self, devname)
+        vt_device.VT_Device.__init__(self, devname, has_gui=True)
         self.set_net_addr(addr)
         self.preamble_int = preamble_int
         self.dmt_demod = dmt.DmtDeMod(samples = np.zeros(2*len(preamble_int)),
@@ -94,7 +94,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def createTopFigureGroupBox(self):
         self.TopFigureGroupBox = QtWidgets.QGroupBox("Background information")
         self.inforGraph = QtWidgets.QLabel(self)
-        pixmap = QtGui.QPixmap('./guiunits/image.png')
+        pixmap = QtGui.QPixmap('./guiunits/imags/fh-bkg.png')
         self.inforGraph.setPixmap(pixmap)
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.inforGraph)
@@ -110,7 +110,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     
     def createBottomMiddlePlotGroupBox(self):
         self.BottomMiddlePlotGourpBox = QtWidgets.QGroupBox("constellation digram")
-        self.constellation = MyDynamicMplCanvas(parent=None, width=5, height=4,
+        self.constellation = fhDemoPlot(parent=None, width=5, height=4,
                                    dpi=100, datadevice=self.datadevice)
         layout = QtWidgets.QHBoxLayout()
         layout.addWidget(self.constellation)

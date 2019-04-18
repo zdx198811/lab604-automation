@@ -22,6 +22,7 @@ class VT_Device:
 
     Attributes:
         dev_name - a string
+        has_gui - decide whether messages are forwarded to a GUI app.
         open_state - a integer indicating the socket state. 0=Closed,
                      1=Connected, -1=RemoteShutdown
         CommandSet - a dict describing all supported commands.
@@ -31,15 +32,15 @@ class VT_Device:
 
     Methods:
         set_net_addr(ipaddr, tcpport) - set the remote backend IP
+        set_gui_verbos(x,y,z) - set which type of message is forwarded to GUI
         open_device() - connect to the remote backend and retrieve CommandSet
         config() - write message to the backend
         query() - retrieve data from the backend
         print_commandset() - print out all the CommandSet
     """
-    # class variables shared by all instances:
 
     # class methods:
-    def __init__(self, dev_name):
+    def __init__(self, dev_name, has_gui=False):
         self.dev_name = dev_name    # instance variable unique to each instance
         self.open_state = 0
         self.CommandSet = {}
@@ -49,26 +50,44 @@ class VT_Device:
         # new VT_Comm subclass and then overide this
         # class variable when instantiate VT_Device objects.
         self.net_addr = ("localhost", 9997)
-        self.msgbf = MessageBuf(100, msg_src=dev_name)
+        self.has_gui = has_gui
+        self.msgbf = MessageBuf(100, dev_name, has_gui)
         self.guisgnl = self.msgbf._sgnl_wrapper.msg_sgnl
 
     def set_net_addr(self, addrtuple):
         """ example: ipaddr = "192.168.56.101", tcpport = 9997 """
-        (ipaddr, tcpport) = addrtuple
-        self.net_addr = (ipaddr, tcpport)
+        if addrtuple:
+            (ipaddr, tcpport) = addrtuple
+            self.net_addr = (ipaddr, tcpport)
+    
+    def set_gui_verbos(self, x, y, z):
+        """ Set verbosity level of GUI message forwarding.
+        
+        x - Info, y - Warning, z - Error. 
+        E.g. (1,1,1) means all messages forwarded; (0,1,1) ignores Info.
+        """
+        if self.has_gui:
+            self.msgbf.set_gui_verbos(x, y, z)
+        else:
+            print('Operation Failed. self.has_gui = False')
 
-    def open_device(self):
+    def open_device(self, addrTupe=None):
         """ starts tcp session
-
-        Make sure to use set_net_addr() method first, or it tries to
-        connect localhost.
-        Return a string, describing whether the connection successed or failed.
+        
+        Argument: addrTuple, which contains a IP string and an integer tcp port
+            number. Eg. ('192.168.1.4', 9998). If not present, make sure to use
+            set_net_addr() method first, or it tries to connect localhost.
+            
+        Return: a string, describing whether the connection succeeds or fails.
         """
         if self.open_state == 1:
             ConnectResult = 'opened! To re-open, run close_device() first.'
         else:
             self.Comm.__init__()
-            ConnectResult = self.Comm.connect(self.net_addr)
+            if addrTupe:
+                ConnectResult = self.Comm.connect(addrTupe)
+            else:
+                ConnectResult = self.Comm.connect(self.net_addr)
             if (ConnectResult[0:9] == "Connected"):
                 (self.open_state, response) = self.Comm.query('ComSet')
                 if (self.open_state == 1):
@@ -84,6 +103,7 @@ class VT_Device:
         else:
             # return 1 if success
             self.open_state = self.Comm.send_command(command_str, databytes)
+            self.msgbf.info('{} operation succeed.'.format(command_str))
 
     def close_device(self):
         """shut local connection and release local socket.
@@ -113,6 +133,7 @@ class VT_Device:
             self.msgbf.warning('Operation failed! Socket not connected.')
             return b''
         else:
+            self.msgbf.info('query_bin {}'.format(arg_str))
             len_return = self.args_str_parse(arg_str)
             (self.open_state, response) = self.Comm.query(arg_str, len_return)
             return response
