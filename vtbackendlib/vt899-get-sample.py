@@ -182,7 +182,7 @@ class data_feeder_pon56g:
             #sample_list_norm = norm_to_127_int8(samples_56g[0:self.n_sample])
             sample_list_norm = np.array(samples_56g[0:self.n_sample], dtype='int8')
             # sig_P stands for signal power, which is here simplified as amplitude
-            sig_P = np.mean(np.abs(sample_list_norm[0:200])).astype('int8')
+            sig_P = np.mean(np.abs(sample_list_norm[0:500])).astype('int8')
             with open('/tmp/chan1_SigP.bin', 'wb') as f_sigp:
                 f_sigp.write(sig_P.tobytes())
             sample_list_bin = sample_list_norm.tobytes()

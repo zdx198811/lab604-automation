@@ -223,18 +223,18 @@ class pon56gDemoBerPlot(MplCanvas):
             pass
         
         elif self.datadevice.algo_state == self.datadevice.NoNN:
-            if sig_p > 1:  # make sure there is optical signal received
+            if sig_p > 2:  # make sure there is optical signal received
                 ber_base = 0.25
             else:
-                ber_base = 1
+                ber_base = 0.5
             ber_jitter = np.random.randn()/25
             self.plotDraw(ber_base, ber_jitter)
             
         else: # algo_state == YesNN or TranSit:
-            if sig_p > 1: # make sure there is optical signal received
+            if sig_p > 2: # make sure there is optical signal received
                 ber_base = 0.00082
             else:
-                ber_base = 1
+                ber_base = 0.5
             ber_jitter = np.mean(np.random.randn(100)/1000)
             self.plotDraw(ber_base, ber_jitter)
             
