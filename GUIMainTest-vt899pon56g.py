@@ -391,9 +391,14 @@ class fadingPic(QObject):
     def __init__(self, pixmap, parent=None):
         super().__init__(parent)
         self.pixmap_item = QGraphicsPixmapItem(pixmap)
-    
+        self.text_item = QGraphicsTextItem("Nerual Network based Channel Learning")
+        font = QFont("Nokia Pure Text Light", 18) # QFont.Bold
+        self.text_item.setFont(font)
+        self.text_item.setDefaultTextColor(QColor(18, 65, 145))
+        
     def _set_opacity(self, opc):
         self.pixmap_item.setOpacity(opc)
+        self.text_item.setOpacity(opc)
     
     def fadeIn(self):
         anim = QPropertyAnimation(self, b'opacity')
@@ -419,7 +424,7 @@ class AppWindow(QMainWindow):
         self.datadevice = datadevice
         self.awg = awg
         self.nokia_blue = QColor(18, 65, 145)
-        self.title = "High-speed PON demo"  # "超高速光接入网" 
+        self.title = "High-speed PON demo"  
         self.geo = {
             'top'   : 30,
             'left'  : 0,
@@ -570,8 +575,9 @@ class AppWindow(QMainWindow):
             self.detailFigure_2Clicked.emit()
         
         detailFigure_1 = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_1.png'))
-        detailFigure_2_Qobj = fadingPic(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_2_en.png'))
+        detailFigure_2_Qobj = fadingPic(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_2.png'))
         detailFigure_2 = detailFigure_2_Qobj.pixmap_item
+        detailFigure_2_title = detailFigure_2_Qobj.text_item
         detailFigure_1.mousePressEvent = clickEventHandler
         title = QGraphicsTextItem("Our Innovation/Contribution")
         font = QFont("Nokia Pure Text Light", 25, QFont.Bold)
@@ -597,14 +603,17 @@ class AppWindow(QMainWindow):
         scene.setSceneRect(0, 0, 1285, 420)
         scene.addItem(detailFigure_2)
         scene.addItem(detailFigure_1)
+        scene.addItem(detailFigure_2_title)
         scene.addItem(textItem1)
         scene.addItem(textItem2)
         scene.addItem(title)
         scene.addItem(fan.pixmap_item)
         
         detailFigure_1.setPos(QPointF(35, 88))
-        detailFigure_2.setPos(QPointF(570, 40))
+        detailFigure_2.setPos(QPointF(570, 96))
         detailFigure_2.setOpacity(0)  # hided at first
+        detailFigure_2_title.setPos(QPointF(750, 46))
+        detailFigure_2_title.setOpacity(0)
         title.setPos(QPointF(50,20))
         textItem1.setPos(QPointF(40, 168))
         textItem2.setPos(QPointF(361, 168))
@@ -621,6 +630,7 @@ class AppWindow(QMainWindow):
         self.detailGrpTextItem1 = textItem1
         self.detailGrpTextItem2 = textItem2
         self.detailFigTitle = title
+        self.detailFigure_2_title = detailFigure_2_title
         self.turbofan = fan
         self.NNfigure_fadeIn = detailFigure_2_Qobj.fadeIn()
         self.NNfigure_fadeOut = detailFigure_2_Qobj.fadeOut()
@@ -863,6 +873,7 @@ class AppWindow(QMainWindow):
             self.subTitle.setText('''<div style="font-family:微软雅黑;"> ——50G光接入 </div> ''')
             self.bkgrndTitle.setText("光接入的 ‘方案 vs 需求’")
             self.detailFigTitle.setPlainText("颠覆式创新")
+            self.detailFigure_2_title.setPlainText("基于 深度递归神经网络 的光信道‘学习’") 
             self.prototypeTitle.setText("硬件平台实时监控")
             self.detailGrpTextItem1.setHtml('''
                  <body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
@@ -883,6 +894,7 @@ class AppWindow(QMainWindow):
             self.bkgrndTitle.setText("Growing Demand for Access")
             self.prototypeTitle.setText("Prototype Monitor")
             self.detailFigTitle.setPlainText("Our Innovation/Contribution")
+            self.detailFigure_2_title.setPlainText("Nerual Network based Channel Learning") 
             self.detailGrpTextItem1.setHtml('''
                  <body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
                  <div >10GHz</div>
