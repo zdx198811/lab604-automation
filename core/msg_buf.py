@@ -4,8 +4,10 @@ Created on Wed Mar 13 15:12:15 2019
 
 @author: dongxucz
 """
-
+import atexit
 from time import asctime
+import tempfile
+from os import name as os_name
 from PyQt5.QtCore import pyqtSignal, QObject
 
 class SigWrapper(QObject):
@@ -20,7 +22,7 @@ class MessageBuf:
     """
     
     def __init__(self, histlim = 50, msg_src = '', qtGui = True,
-                 gui_verbos=(1,1,1)):
+                 gui_verbos=(1,1,1), logfile = False, logpath = None):
         """ 
         Arguments:
             histlim - Storage depth. No more history logged beyond histlim.
@@ -32,6 +34,8 @@ class MessageBuf:
             gui_verbos - a tuple with three numbers correponding to verbosity
                          level of GUI message forwarding. e.g. default (1,1,1)
                          means all messages forwarded; (0,1,1) ignores Info.
+            logfile - if true, save all messages to disk
+            logpath - the path of logfile on the disk (should be a text file)
         """
         self.current_msg = ''
         self.history_msgs = []
@@ -40,6 +44,24 @@ class MessageBuf:
         self.ms = msg_src  # source of message
         self.qtGui = qtGui
         self.gui_verbos = gui_verbos
+        self.logfile = logfile
+        if logfile:
+            if logpath:
+                self.logpath = logpath
+            else:
+                file_name = self.ms + ''.join(asctime().split()[3].split(':')) + '.log'
+                if os_name == 'nt':
+                    self.logpath = tempfile.gettempdir() + '\\' + file_name
+                else:
+                    self.logpath = tempfile.gettempdir() + '/' + file_name
+  
+            self.lf = open(self.logpath, 'w')
+            atexit.register(self._cleanup)
+            
+
+    def _cleanup(self):
+        print("closing log file {}".format(self.lf))
+        self.lf.close()
         
     def _msg_commen_op(self, stdout, gui):
         self._push_msg_hist()
@@ -47,6 +69,8 @@ class MessageBuf:
             self._send_gui_msg()
         if stdout:
             print(self.current_msg)
+        if self.logfile:
+            self.lf.write(self.current_msg)
     
     def set_gui_verbos(self, x, y, z):
         self.gui_verbos = (x,y,z)
