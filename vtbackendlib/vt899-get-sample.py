@@ -54,12 +54,18 @@ def check_ADC_capture_OK(msg):
     return int(msg_str[13][30:34])==1025
 
 def adc_capture():
-    std_out_bytes = check_output(_capture_command)
-    if (check_ADC_capture_OK(std_out_bytes)):
-        pass
+    # std_out_bytes = check_output(_capture_command)
+    try:
+        std_out_bytes = check_output(_capture_command)
+    except:  # return an error code (1) if any hardware error occors
+        return 1
     else:
-        print(std_out_bytes.decode())
-        raise ValueError('vt899-get_sample.py -> ADC capture error!')
+        if (check_ADC_capture_OK(std_out_bytes)):
+            return 0
+        else: # even if the capture is ok, # of samples should be right.
+            # print(std_out_bytes.decode())
+            # raise ValueError('vt899-get_sample.py -> ADC capture error!')
+            return 1
 
 
 def resample_symbols(rx_frame,rx_p_ref, intp_n=10):
@@ -101,38 +107,52 @@ class data_feeder_fh:
         else:
             self.iterate_fn = self.iterate_fn_real
         
+        self.load_local_sample_files(_sample_bin_path_sim_fh)
+        self._all_samples_bin = []
+        for (idx, sample_list) in enumerate(self._all_samples):
+            sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
+            self._all_samples_bin.append(sample_list_norm.tobytes())
+        self._sim_loopcnt = len(self._all_samples_bin)
+        
     def iterate_fn_real(self):
         """ Use this function as the data generator. """
         for i in range(99999):
             # run the ADC capturing command
-            adc_capture()
-            with open(_sample_bin_path, "rb") as f_data:
-                bytes_data = f_data.read()
-            mview = memoryview(bytes_data)
-            mview_int8 = mview.cast('b')
-            samples_56g = mview_int8.tolist()
-            samples_4g = self.decimate_for_fh_demo(samples_56g)
-            sample_list_norm = norm_to_127_int8(samples_4g[0:self.n_sample])
-            sample_list_bin = sample_list_norm.tobytes()
-            self._mmaplock.acquire()
-            self._m[0:self.n_sample] = sample_list_bin
-            self._mmaplock.release()
-            yield np.array(samples_4g[0:20])
-    
+            cap_err = adc_capture()
+            if cap_err:
+                self._mmaplock.acquire()
+                self._m[0:self.n_sample] = self._all_samples_bin[i % self._sim_loopcnt]
+                self._mmaplock.release()
+                yield np.array(self._all_samples[i % self._sim_loopcnt][0:20])
+            else: # switch to simulation mode automatically if adc_capture() fails
+                with open(_sample_bin_path, "rb") as f_data:
+                    bytes_data = f_data.read()
+                mview = memoryview(bytes_data)
+                mview_int8 = mview.cast('b')
+                samples_56g = mview_int8.tolist()
+                samples_4g = self.decimate_for_fh_demo(samples_56g)
+                sample_list_norm = norm_to_127_int8(samples_4g[0:self.n_sample])
+                sample_list_bin = sample_list_norm.tobytes()
+                self._mmaplock.acquire()
+                self._m[0:self.n_sample] = sample_list_bin
+                self._mmaplock.release()
+                yield np.array(samples_4g[0:20])
+
+   
     def iterate_fn_sim(self):
         """ Use this function to simulate the real data generator. """
-        self.load_local_sample_files(_sample_bin_path_sim_fh)
-        _all_samples_bin = []
-        for (idx, sample_list) in enumerate(self._all_samples):
-            sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
-            _all_samples_bin.append(sample_list_norm.tobytes())
-        loopcnt = len(_all_samples_bin)
+#        self.load_local_sample_files(_sample_bin_path_sim_fh)
+#        _all_samples_bin = []
+#        for (idx, sample_list) in enumerate(self._all_samples):
+#            sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
+#            _all_samples_bin.append(sample_list_norm.tobytes())
+#        loopcnt = len(_all_samples_bin)
         for i in range(99999):
             # print('the {}th plot '.format(i))
             self._mmaplock.acquire()
-            self._m[0:self.n_sample] = _all_samples_bin[i % loopcnt]
+            self._m[0:self.n_sample] = self._all_samples_bin[i % self._sim_loopcnt]
             self._mmaplock.release()
-            yield np.array(self._all_samples[i % loopcnt][0:20])
+            yield np.array(self._all_samples[i % self._sim_loopcnt][0:20])
 
     def load_local_sample_files(self, sample_bin_path):
         sample_file_list = [item for item in listdir(sample_bin_path) if item[-3:]=='bin']
@@ -168,52 +188,74 @@ class data_feeder_pon56g:
             self.iterate_fn = self.iterate_pon56g_sim
         else:
             self.iterate_fn = self.iterate_pon56g_real
-        
+            
+        self.load_local_sample_files(_sample_bin_path_sim_pon56g)
+        self._all_samples_bin = []
+        # print('all_samples loaded')
+        for (idx, sample_list) in enumerate(self._all_samples):
+            sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
+            self._all_samples_bin.append(sample_list_norm.tobytes())
+        self._sim_loopcnt = len(self._all_samples_bin)
+        self._sim_sig_P_list = [120, 110, 89, 99, 78, 67, 78, 120, 110, 89, 99, 78, 87,
+                      20, 120, 110, 89, 99, 78, 67, 78, 120, 110, 99, 88, 89,
+                      87, 99, 100, 109, 113, 86]  # just some random number
+                      # for simulating different signal power
+                      
     def iterate_pon56g_real(self):
         """ Use this function as the data generator. """
         for i in range(99999):
             # run the ADC capturing command
-            adc_capture()
-            with open(_sample_bin_path, "rb") as f_data:
-                bytes_data = f_data.read()
-            mview = memoryview(bytes_data)
-            mview_int8 = mview.cast('b')
-            samples_56g = mview_int8.tolist()
-            #sample_list_norm = norm_to_127_int8(samples_56g[0:self.n_sample])
-            sample_list_norm = np.array(samples_56g[0:self.n_sample], dtype='int8')
-            # sig_P stands for signal power, which is here simplified as amplitude
-            sig_P = np.mean(np.abs(sample_list_norm[0:500])).astype('int8')
-            with open('/tmp/chan1_SigP.bin', 'wb') as f_sigp:
-                f_sigp.write(sig_P.tobytes())
-            sample_list_bin = sample_list_norm.tobytes()
-            self._mmaplock.acquire()
-            self._m[0:self.n_sample] = sample_list_bin
-            self._mmaplock.release()
-            yield np.array(samples_56g[0:20])
+            cap_err = adc_capture()
+            if cap_err: # switch to simulation mode if adc_capture() fails
+                sig_P = np.mean(self._sim_sig_P_list[i%len(self._sim_sig_P_list)], dtype='int8')
+                with open('/tmp/chan1_SigP.bin', 'wb') as f_sigp:
+                    f_sigp.write(sig_P.tobytes())
+                self._mmaplock.acquire()
+                self._m[0:self.n_sample] = self._all_samples_bin[i % self._sim_loopcnt]
+                self._mmaplock.release()
+                yield np.array(self._all_samples[i % self._sim_loopcnt][0:20])
+            else: 
+                with open(_sample_bin_path, "rb") as f_data:
+                    bytes_data = f_data.read()
+                mview = memoryview(bytes_data)
+                mview_int8 = mview.cast('b')
+                samples_56g = mview_int8.tolist()
+                #sample_list_norm = norm_to_127_int8(samples_56g[0:self.n_sample])
+                sample_list_norm = np.array(samples_56g[0:self.n_sample], dtype='int8')
+                # sig_P stands for signal power, which is here simplified as amplitude
+                sig_P = np.mean(np.abs(sample_list_norm[0:500])).astype('int8')
+                with open('/tmp/chan1_SigP.bin', 'wb') as f_sigp:
+                    f_sigp.write(sig_P.tobytes())
+                sample_list_bin = sample_list_norm.tobytes()
+                self._mmaplock.acquire()
+                self._m[0:self.n_sample] = sample_list_bin
+                self._mmaplock.release()
+                yield np.array(samples_56g[0:20])
+                
     
     def iterate_pon56g_sim(self):
         """ Use this function to simulate the real data generator. """
         # print('inside iterate')
-        self.load_local_sample_files(_sample_bin_path_sim_pon56g)
-        _all_samples_bin = []
-        # print('all_samples loaded')
-        for (idx, sample_list) in enumerate(self._all_samples):
-            sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
-            _all_samples_bin.append(sample_list_norm.tobytes())
-        loopcnt = len(_all_samples_bin)
-        sig_P_list = [120, 110, 89, 99, 78, 67, 78, 120, 110, 89, 99, 78, 87,
-                      2, 120, 110, 89, 99, 78, 67, 78, 120, 110, 99, 88, 89,
-                      87, 99, 100, 109, 113, 86]  # just some random number
-                      # simulating different signal power
+#        self.load_local_sample_files(_sample_bin_path_sim_pon56g)
+#        _all_samples_bin = []
+#        # print('all_samples loaded')
+#        for (idx, sample_list) in enumerate(self._all_samples):
+#            sample_list_norm = norm_to_127_int8(sample_list[0:self.n_sample])
+#            _all_samples_bin.append(sample_list_norm.tobytes())
+#        loopcnt = len(_all_samples_bin)
+#        sig_P_list = [120, 110, 89, 99, 78, 67, 78, 120, 110, 89, 99, 78, 87,
+#                      20, 120, 110, 89, 99, 78, 67, 78, 120, 110, 99, 88, 89,
+#                      87, 99, 100, 109, 113, 86]  # just some random number
+#                      # simulating different signal power
         for i in range(99999):
             # print('the {}th plot '.format(i))
-            sig_P = np.mean(sig_P_list[i%len(sig_P_list)], dtype='int8')
+            sig_P = np.mean(self._sim_sig_P_list[i%len(self._sim_sig_P_list)], dtype='int8')
             with open('/tmp/chan1_SigP.bin', 'wb') as f_sigp:
                 f_sigp.write(sig_P.tobytes())
             self._mmaplock.acquire()
-            self._m[0:self.n_sample] = _all_samples_bin[i % loopcnt]
+            self._m[0:self.n_sample] = self._all_samples_bin[i % self._sim_loopcnt]
             self._mmaplock.release()
-            yield np.array(self._all_samples[i % loopcnt][0:20])
+            yield np.array(self._all_samples[i % self._sim_loopcnt][0:20])
 
     def load_local_sample_files(self, sample_bin_path):
         sample_file_list = [item for item in listdir(sample_bin_path) if item[-3:]=='bin']
