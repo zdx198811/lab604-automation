@@ -183,8 +183,8 @@ class data_feeder_pon56g:
         self._m = mmap_file
         self._mmaplock = syslock.NamedAtomicLock(name='pon56g')
         self.n_sample = n_sample
+        self._all_samples = []
         if sim_flag:
-            self._all_samples = []
             self.iterate_fn = self.iterate_pon56g_sim
         else:
             self.iterate_fn = self.iterate_pon56g_real
@@ -305,6 +305,7 @@ if __name__ == '__main__':
         n_sample = 393600  # see application notes
         _m = mmap.mmap(_f.fileno(), n_sample,  access=mmap.ACCESS_WRITE)
         data_feeder = data_feeder_pon56g(_m, n_sample, sim_flag)
+        print('----------------\ndatafeeder ok, sim={}\n-----------------'.format(str(sim_flag)))
     else:
         raise ValueError('vt899-get-samples.py -> invalid app name')
     

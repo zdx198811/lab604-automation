@@ -96,13 +96,13 @@ class Vt899:
         # allocate a inter-process lock to synchronize mmap file operation.
         self._mmaplock = NamedAtomicLock(app_name)
         
-        # run the vt899-get-sample.py script.
+        #  shutdown firewall and run the vt899-get-sample.py script.
+        subprocess.run(["systemctl", "stop", "firewalld.service"])
         if sim_flag:  # for simulation, run the fake data capturing
             script_arg = ['-s']  # '-p'
         else:
             script_arg = []
-            # shutdown firewall and initialize the amc590 ADC card.
-            subprocess.run(["systemctl", "stop", "firewalld.service"])
+            # initialize the amc590 ADC card.    
             subprocess.run(["/root/1.2.0_R0/tool/amc590tool", "init"])
         cmd = ["python", "./vtbackendlib/vt899-get-sample.py", app_name]
         cmd.extend(script_arg)
