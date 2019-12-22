@@ -36,7 +36,7 @@ CommandSet = {
              } # hidden item - 'ComSet' : return the CommandSet. Only used for once when establishing connection. Not visible to frontend user.
 
 def app_init(app, sim_flag):
-    if app is in ["fh"]:
+    if app in ["fh"]:
         if sim_flag:
             subprocess.Popen(["python", "./vtbackendlib/send_sample_req_sim.py"])
         else:

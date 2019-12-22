@@ -49,14 +49,14 @@ def empty_socket(sock):
     """remove the data present on the socket"""
     print('clearing residual socket bytes')
     while 1:
-        inputready, o, e = select([sock],[],[], 5)
+        inputready, _, __ = select([sock],[],[], 5)
         if len(inputready)==0: break
         for s in inputready: s.recv(1024)
     
 def _recvframes(sock, n_frames, frame_bytes):
     data = b''
     frames = []
-    for f in range(n_frames):
+    for _ in range(n_frames):
         while len(data) < frame_bytes:
             more = sock.recv(frame_bytes - len(data))
             #print("frame %d received %d bytes." % (f+1, len(more)))
@@ -159,9 +159,10 @@ class Mz7030faMt9v034Cap(VideoCapBase):
     def __init__(self, src=('192.168.1.10', 1069), size=(640,480), remotepipemode = False, maxbuf=3, **kwargs):
         ''' 
         positional argument:
+
+        keyword arguments:
             src - a tuple (ip, tcp), or a URL
             size - a tuple (w, h) where w and h are integers (# of pixles)
-        keyword arguments:
             remotepipemode - True or False
             fps - integer frame/second
         '''
@@ -190,14 +191,14 @@ class Mz7030faMt9v034Cap(VideoCapBase):
     def _socket_connect(self):
         try:
             self._sock.connect(self.src)
-        except OSError as err:
-            msg = "{}.\nTip: Check the address1".format(str(err))
-            self._sock.close()
-            raise ValueError(msg)
         except ConnectionRefusedError as err:
             print(type(err), str(err))
             self._sock.close()
             raise ValueError("{}. Tip: Check the address2".format(str(err)))
+        except OSError as err:
+            msg = "{}.\nTip: Check the address1".format(str(err))
+            self._sock.close()
+            raise ValueError(msg)
         print("Connected to !! {}:{}".format(self.src[0], str(self.src[1])))
         return True
     
@@ -286,7 +287,7 @@ class Mz7030faMt9v034Cap(VideoCapBase):
 if __name__ == '__main__':
     import argparse
     modechoices= {'rp':True, 'lp':False}
-    parser = argparse.ArgumentParser(description='test mz7030fa board with single mt9v034 camera. Push Space/ESC key to save frame/exit.')
+    parser = argparse.ArgumentParser(description='test mz7030fa board with single mt9v034 camera. ')
     parser.add_argument('-i', type=str, default='192.168.1.10',
                         help='interface the client sends to. (default 192.168.1.10)')
     parser.add_argument('-p', metavar='PORT', type=int, default=1069,
@@ -298,6 +299,8 @@ if __name__ == '__main__':
     
     parser.add_argument('-t', type=str, default='vid', choices=['vid', 'fig'],
                         help='play video or just show picture. (default vid)')
+    parser.add_argument("-s", "--server", help="use this option to run as remote-pipe server which listens on port 10690",
+                        action="store_true")
 
     args = parser.parse_args()
     
@@ -312,6 +315,7 @@ if __name__ == '__main__':
     mz7030fa.start_stream()
     shot_idx = 0
     
+    print("Push Space/ESC key to save frame/exit.")
     if (testtype == 'vid'): #
         while True:
             _, img = mz7030fa.read()
