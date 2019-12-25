@@ -435,7 +435,7 @@ if __name__ == '__main__':
 #            shot_idx += 1
 #    cv.destroyAllWindows()
     
-    cap = create_capture(fallback='synth:class=chess:bg=lena.jpg:noise=0.1:size=640x480')
+    cap = create_capture(fallback='synth:class=chess:bg=lena.jpg:noise=0.0:size=640x480')
     xxx = boardSimulator(cap, '10.242.13.93')
     #xxx = boardSimulator(cap, '192.168.1.3')
     xxx.run()

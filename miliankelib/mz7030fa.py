@@ -1,21 +1,15 @@
 # -*- coding: utf-8 -*-
 """
+Discription:
+    This module provides APIs for the 米联客 MZ7030FA and MZ7XA-7010 boards.
+    There are 3 different types of usage, including:
+        1. direct board test; 
+        2. remote pipe server;
+        3. application interface.
+    Refer to the readme.md file for more detailed discription.
+
 Created on Nov. 29 2019
 @author: dongxucz (dongxu.c.zhang@nokia-sbell.com)
-
-Discription:
-    This module is the real work horse of the backend, a.k.a., the command
-    executor.
-    
-    First, all available commands supported by the device should be defined in
-    the dict named 'CommandSet'. The element's structure of 'CommandSet': 
-        KEY = API type (corresponding to the VT_Device methods at the frontend)
-        VALUE = a dict of (command_string : discription_string)
-        
-    Then, in the handle() function, do everything correspondingly to respond to
-    the client's command. handle() returns a result value, can be used to any
-    extended use. But returning -1 is a special code, which will let the
-    VT_Handler finish the TCP session.
 """
 
 import cv2 as cv
@@ -23,10 +17,11 @@ import numpy as np
 import socket
 import struct
 from select import select
-from multiprocessing import Process, Queue, Value
+from multiprocessing import Process, Queue, Value, Manager
 from time import sleep
 import matplotlib.pyplot as plt
 from abc import ABCMeta, abstractmethod
+Manager
 
 _BKND_UNDEFINED = 0
 _BKND_LOCAL_PIPE = 1
@@ -156,25 +151,25 @@ class VideoCapBase(metaclass=ABCMeta):
 
 
 class Mz7030faMt9v034Cap(VideoCapBase):
-    def __init__(self, src=('192.168.1.10', 1069), size=(640,480), remotepipemode = False, maxbuf=3, **kwargs):
+    def __init__(self, src=('192.168.1.10', 1069), size=(640,480), mode = 'direct', maxbuf=3, **kwargs):
         ''' 
         positional argument:
 
         keyword arguments:
             src - a tuple (ip, tcp), or a URL
             size - a tuple (w, h) where w and h are integers (# of pixles)
-            remotepipemode - True or False
+            mode - can be 'direct','server','app'
             fps - integer frame/second
         '''
         super(Mz7030faMt9v034Cap, self).__init__(src, size, **kwargs)
         if type(src)==tuple: # pipe
             assert(type(src[0])==str and type(src[1])==int)
             self._sock = None
-            if remotepipemode:
+            if (mode=='app'):
                 self._backend_type = _BKND_REMOTE_PIPE
                 print('remote pipe backend')
                 self._Open_RP()
-            else:
+            elif (mode=='direct'):
                 self._frame_buffering_proc = None # frame buffer process
                 self._q = None # frame FIFO (multi-process interface)
                 self._command = Value('i', 0)
@@ -182,6 +177,9 @@ class Mz7030faMt9v034Cap(VideoCapBase):
                 self._maxbuf = maxbuf
                 print('local pipe backend')
                 self._Open_LP()
+            else:
+                assert(mode=='server')
+                pass
         elif type(src)==str: # url
             raise ValueError('not supported yet')
         else:
@@ -284,65 +282,71 @@ class Mz7030faMt9v034Cap(VideoCapBase):
                 frame.append(struct.unpack(str(self._Wd)+'B', framebytes[start:start+self._Wd]))
         return True, np.array(frame, dtype='uint8')
     
+
+
+
+
 if __name__ == '__main__':
     import argparse
-    modechoices= {'rp':True, 'lp':False}
+    modechoices= {'direct', 'app', 'server'}
     parser = argparse.ArgumentParser(description='test mz7030fa board with single mt9v034 camera. ')
     parser.add_argument('-i', type=str, default='192.168.1.10',
                         help='interface the client sends to. (default 192.168.1.10)')
     parser.add_argument('-p', metavar='PORT', type=int, default=1069,
                         help='TCP port (default 1069)')
-    parser.add_argument('-m', metavar='MODE', type=str, default='lp',
-                        choices=modechoices, help='local pipe or remote pipe. (default lp)')
+    parser.add_argument('-m', metavar='MODE', type=str, default='direct',
+                        choices=modechoices, help='usage mode: direct (default), server, or app.')
     parser.add_argument('-dir', type=str, default='.',
                         help='directory to save screenshort. (default .)')
     
     parser.add_argument('-t', type=str, default='vid', choices=['vid', 'fig'],
                         help='play video or just show picture. (default vid)')
-    parser.add_argument("-s", "--server", help="use this option to run as remote-pipe server which listens on port 10690",
-                        action="store_true")
 
     args = parser.parse_args()
     
     ipaddr = args.i
     tcpport = args.p
-    pipemode = modechoices[args.m]
+    usagemode = args.m
     shotdir = args.dir
     testtype = args.t
-    
-    mz7030fa = Mz7030faMt9v034Cap(src=(ipaddr,tcpport), remotepipemode=pipemode, maxbuf=2)
-    mz7030fa.set_fps(16)
-    mz7030fa.start_stream()
-    shot_idx = 0
-    
-    print("Push Space/ESC key to save frame/exit.")
-    if (testtype == 'vid'): #
-        while True:
-            _, img = mz7030fa.read()
-            cv.imshow('capture', img)
-            ch = cv.waitKey(1)
-            if ch == 27:
-                mz7030fa.stop()
-                break
-            if ch == ord(' '):
-                fn = '%s/shot_%03d.bmp' % (shotdir, shot_idx)
-                cv.imwrite(fn, img)
-                print(fn, 'saved')
-                shot_idx += 1
-        
+
+    if (usagemode=='server'):
+        # start Flask Web server
+        pass
+
     else:
-        while True:
-            n=mz7030fa.get_n_buffed()
-            for i in range(n+1):
+        mz7030fa = Mz7030faMt9v034Cap(src=(ipaddr,tcpport), mode=usagemode, maxbuf=2)
+        mz7030fa.set_fps(16)
+        mz7030fa.start_stream()
+        shot_idx = 0
+        print("Push Space/ESC key to save frame/exit.")
+        if (testtype == 'vid'): #
+            while True:
                 _, img = mz7030fa.read()
-            cv.imshow('capture', img)
-            ch = cv.waitKey()
-            if ch == 27:
-                mz7030fa.stop()
-                break
-            if ch == ord(' '):
-                fn = '%s/shot_%03d.bmp' % (shotdir, shot_idx)
-                cv.imwrite(fn, img)
-                print(fn, 'saved')
-                shot_idx += 1
-    cv.destroyAllWindows()
+                cv.imshow('capture', img)
+                ch = cv.waitKey(1)
+                if ch == 27:
+                    mz7030fa.stop()
+                    break
+                if ch == ord(' '):
+                    fn = '%s/shot_%03d.bmp' % (shotdir, shot_idx)
+                    cv.imwrite(fn, img)
+                    print(fn, 'saved')
+                    shot_idx += 1
+            
+        else:
+            while True:
+                n=mz7030fa.get_n_buffed()
+                for i in range(n+1):
+                    _, img = mz7030fa.read()
+                cv.imshow('capture', img)
+                ch = cv.waitKey()
+                if ch == 27:
+                    mz7030fa.stop()
+                    break
+                if ch == ord(' '):
+                    fn = '%s/shot_%03d.bmp' % (shotdir, shot_idx)
+                    cv.imwrite(fn, img)
+                    print(fn, 'saved')
+                    shot_idx += 1
+        cv.destroyAllWindows()

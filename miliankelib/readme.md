@@ -10,6 +10,8 @@ In the _**FogDemoData**_ subfolder, there is a board simulation script, which ca
 # 2. Usage
 > **NOTE**: The FPGA board has to be properly configured before using any of the Python APIs. The FPGA project archive (along with Zynq code image) can be found in the _FPGA_prj_ backup folder in the Z800 workstation.
 
+> **NOTE**: TCP port 1069 should be allowed by firewall.
+
 There are three ways to use the `mz7030fa` module:
  1. Test FPGA board functionalities on a PC connectting to the board directly.
  2. Based on 1, further provide a "proxy layer" to forward the video stream to other PCs.
