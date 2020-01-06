@@ -387,7 +387,10 @@ class boardSimulator:
                 
                 if (n_frame_to_send>0):
                     ret, img = self.cap.read()
-                    data_to_send = img[:,:,:1].reshape((480,640)).data.tobytes()
+                    imggray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+                    #data_to_send = img[:,:,:1].reshape((480,640)).data.tobytes()
+                    data_to_send = imggray.data.tobytes()
+                    #print('DEBUGGGGG: %d'%len(data_to_send))
                     try:
                         sc.sendall(data_to_send)
                     except BrokenPipeError as err:

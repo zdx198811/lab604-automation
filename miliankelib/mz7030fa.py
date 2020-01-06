@@ -21,7 +21,8 @@ from multiprocessing import Process, Queue, Value, Manager
 from time import sleep
 import matplotlib.pyplot as plt
 from abc import ABCMeta, abstractmethod
-Manager
+
+#Manager
 
 _BKND_UNDEFINED = 0
 _BKND_LOCAL_PIPE = 1
@@ -209,6 +210,9 @@ class Mz7030faMt9v034Cap(VideoCapBase):
     def start_stream(self):
         self._set_command_value(commandset['endless'])
     
+    def start(self):
+        self.start_stream()
+    
     def _set_command_value(self, val):
         if self._frame_buffering_proc==None:
             raise ValueError('frame buffering process is not running!')
@@ -280,7 +284,9 @@ class Mz7030faMt9v034Cap(VideoCapBase):
             for row in range(self._Ht):
                 start = row*self._Wd
                 frame.append(struct.unpack(str(self._Wd)+'B', framebytes[start:start+self._Wd]))
-        return True, np.array(frame, dtype='uint8')
+            return True, np.array(frame, dtype='uint8')
+        else:
+            return False, None
     
 
 
