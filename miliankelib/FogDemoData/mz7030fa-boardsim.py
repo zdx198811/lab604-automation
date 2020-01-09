@@ -344,7 +344,7 @@ class boardSimulator:
         self.sock.listen(1)
         print('Listening at', self.sock.getsockname())
         
-    def run(self):
+    def run(self, showvid = False):
         print('start running board simulation')
         while True:
             n_frame_to_send = 0
@@ -398,6 +398,9 @@ class boardSimulator:
                         self.stopflag.value=1
                     n_frame_to_send = n_frame_to_send-1
                     sleep(1/(self.fps+1))
+                    if showvid:
+                        cv.imshow("source", img)
+                        cv.waitKey(1)
 
                     
     def waitconnection(self):
@@ -406,19 +409,24 @@ class boardSimulator:
         return sc
         
 if __name__ == '__main__':
-    import sys
-    import getopt
+    import argparse
 
-    print(__doc__)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--ipaddr", help="IP address of this simulator", 
+                        default='10.242.13.114')
+    parser.add_argument("-o", "--tcpport", help="tcp port of this simulator", 
+                        default=1069)
+    parser.add_argument("-p", "--pathshot", help="path to save shot",
+                        default='.')
+    parser.add_argument("-s", "--showvideo", help="plot samples",
+                        action="store_true", default=True)
 
-    args, sources = getopt.getopt(sys.argv[1:], '', 'shotdir=')
-    print('args=', args)
-    print('sources=', sources)
-    args = dict(args)
-    shotdir = args.get('--shotdir', '.')
-    if len(sources) == 0:
-        sources = [ 0 ]
-
+    args = parser.parse_args()
+    shotdir = args.pathshot
+    showvid = args.showvideo
+    ipaddr = args.ipaddr
+    tcpport = args.tcpport
+    
 #    caps = list(map(create_capture, sources))
 #    shot_idx = 0
 #    while True:
@@ -439,6 +447,6 @@ if __name__ == '__main__':
 #    cv.destroyAllWindows()
     
     cap = create_capture(fallback='synth:class=chess:bg=lena.jpg:noise=0.0:size=640x480')
-    xxx = boardSimulator(cap, '10.242.13.93')
+    xxx = boardSimulator(cap, ipaddr, tcpport, fps=16)
     #xxx = boardSimulator(cap, '192.168.1.3')
-    xxx.run()
+    xxx.run(showvid)

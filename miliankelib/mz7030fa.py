@@ -2,10 +2,11 @@
 """
 Discription:
     This module provides APIs for the 米联客 MZ7030FA and MZ7XA-7010 boards.
-    There are 3 different types of usage, including:
+    There are 4 different types of usage, including:
         1. direct board test; 
         2. remote pipe server;
-        3. application interface.
+        3. application interface;
+        4. raw API mode (be cautious, may cause tcp buffer overflow)
     Refer to the readme.md file for more detailed discription.
 
 Created on Nov. 29 2019
@@ -28,7 +29,8 @@ _BKND_UNDEFINED = 0
 _BKND_LOCAL_PIPE = 1
 _BKND_REMOTE_PIPE = 2
 _BKND_WEB = 3
-   
+_BKND_SOCKET = 4
+
 commandset={'terminate' :   21000010,
             'endless'   :   21000000,
             'fps8'      :   21000001,
@@ -39,7 +41,7 @@ commandset={'terminate' :   21000010,
 def _send_int_to_camera(sock, n):
     ''' send an integer to the camera board.
     '''
-    sock.sendall(struct.pack("L", n))
+    sock.sendall(struct.pack("<L", n))
 
 def empty_socket(sock):
     """remove the data present on the socket"""
@@ -159,10 +161,12 @@ class Mz7030faMt9v034Cap(VideoCapBase):
         keyword arguments:
             src - a tuple (ip, tcp), or a URL
             size - a tuple (w, h) where w and h are integers (# of pixles)
-            mode - can be 'direct','server','app'
+            mode - can be 'direct','server','app', or 'raw'
             fps - integer frame/second
         '''
-        super(Mz7030faMt9v034Cap, self).__init__(src, size, **kwargs)
+        #super(Mz7030faMt9v034Cap, self).__init__(src, size, **kwargs)
+        super().__init__(src, size, **kwargs)
+        self._frame_buffering_proc = None # frame buffer process
         if type(src)==tuple: # pipe
             assert(type(src[0])==str and type(src[1])==int)
             self._sock = None
@@ -171,13 +175,16 @@ class Mz7030faMt9v034Cap(VideoCapBase):
                 print('remote pipe backend')
                 self._Open_RP()
             elif (mode=='direct'):
-                self._frame_buffering_proc = None # frame buffer process
                 self._q = None # frame FIFO (multi-process interface)
                 self._command = Value('i', 0)
                 self._backend_type = _BKND_LOCAL_PIPE
                 self._maxbuf = maxbuf
                 print('local pipe backend')
                 self._Open_LP()
+            elif (mode=='raw'):
+                self._backend_type = _BKND_SOCKET
+                self._Open_rawAPI()
+                print('mz7030fa-mt9v034 raw API mode.')
             else:
                 assert(mode=='server')
                 pass
@@ -214,24 +221,32 @@ class Mz7030faMt9v034Cap(VideoCapBase):
         self.start_stream()
     
     def _set_command_value(self, val):
-        if self._frame_buffering_proc==None:
-            raise ValueError('frame buffering process is not running!')
-        else:
-            self._command.value = val
-            sleep(0.1)
-            while (self._command.value != 0):
-                # waite for the child process to clear the command state.
+        if (self._backend_type==_BKND_SOCKET): # direct sending command via socket
+            _send_int_to_camera(self._sock, val)
+        else: # inform the subprocess via inter-proc Value to send a command
+            if self._frame_buffering_proc is None:
+                return None
+            else:
+                self._command.value = val
                 sleep(0.1)
-            return None
+                while (self._command.value != 0):
+                    # waite for the child process to clear the command state.
+                    sleep(0.1)
+                return None
         
     def get_n_buffed(self):
         ''' return the number of frames buffered '''
-        return self._q.qsize()
+        if (self.backend_type == _BKND_LOCAL_PIPE):
+            return self._q.qsize()
+        else:
+            return None
     
     def stop(self):
         self._Close()
     
     def _Close(self):
+        if (not self.is_opened):
+            return
         print('closing connection.....')
         self.is_opened = False
         if self._frame_buffering_proc is not None:
@@ -241,10 +256,11 @@ class Mz7030faMt9v034Cap(VideoCapBase):
                 self._q.get()
                 print('ok')
             
-            self._frame_buffering_proc.kill()
+            self._frame_buffering_proc.terminate()
             print('child process terminated')
             self._frame_buffering_proc = None
         if self._sock is not None:
+            self._set_command_value(commandset['terminate'])
             empty_socket(self._sock)
             self._sock.shutdown(socket.SHUT_RDWR)
             self._sock.close()
@@ -263,6 +279,7 @@ class Mz7030faMt9v034Cap(VideoCapBase):
         except AssertionError:
             self._Close()
             raise ValueError("test board connection failed.\n Frame size doesn't match!")
+        print('board functioning OK!')
         del frame
     
     def _Open_RP(self):
@@ -276,6 +293,12 @@ class Mz7030faMt9v034Cap(VideoCapBase):
         fsize_bytes = self._Wd*self._Ht
         self._frame_buffering_proc = Process(target=_frame_buffering_process, args=(self._sock, self._q, self._command, fsize_bytes))
         self._frame_buffering_proc.start()
+    
+    def _Open_rawAPI(self):
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if (self._socket_connect()):
+            self._test_board_connection()
+        self.socket = self._sock
         
     def read(self):
         frame = []
@@ -288,20 +311,33 @@ class Mz7030faMt9v034Cap(VideoCapBase):
         else:
             return False, None
     
+    def grabFrames(self, n):
+        '''
+        Parameters
+        ----------
+        n : int
+            nuber of frames to grab. should be >=0 and n<21000000
 
-
-
-
+        Returns
+        -------
+        frames : a list of bytearrays
+            the frame data received over socket.
+        '''
+        assert(type(n)==int and n>=0 and n<21000000)
+        _send_int_to_camera(self._sock, n)
+        frames = _recvframes(self._sock, n, self._Wd*self._Ht)
+        return frames
+    
 if __name__ == '__main__':
     import argparse
-    modechoices= {'direct', 'app', 'server'}
+    modechoices= {'direct', 'app', 'server', 'raw'}
     parser = argparse.ArgumentParser(description='test mz7030fa board with single mt9v034 camera. ')
     parser.add_argument('-i', type=str, default='192.168.1.10',
                         help='interface the client sends to. (default 192.168.1.10)')
     parser.add_argument('-p', metavar='PORT', type=int, default=1069,
                         help='TCP port (default 1069)')
     parser.add_argument('-m', metavar='MODE', type=str, default='direct',
-                        choices=modechoices, help='usage mode: direct (default), server, or app.')
+                        choices=modechoices, help='usage mode: direct (default), server, app, or raw.')
     parser.add_argument('-dir', type=str, default='.',
                         help='directory to save screenshort. (default .)')
     
@@ -320,7 +356,7 @@ if __name__ == '__main__':
         # start Flask Web server
         pass
 
-    else:
+    elif (usagemode=='direct'):
         mz7030fa = Mz7030faMt9v034Cap(src=(ipaddr,tcpport), mode=usagemode, maxbuf=2)
         mz7030fa.set_fps(16)
         mz7030fa.start_stream()
@@ -356,3 +392,25 @@ if __name__ == '__main__':
                     print(fn, 'saved')
                     shot_idx += 1
         cv.destroyAllWindows()
+        
+    elif (usagemode=='raw'):
+        from time import asctime
+        # grab 10s video and save the .mp4 file
+        mz7030fa = Mz7030faMt9v034Cap(src=(ipaddr,tcpport), mode=usagemode)
+        mz7030fa.set_fps(24)
+        allFrames = mz7030fa.grabFrames(240)
+        fourcc = cv.VideoWriter_fourcc(*'DIVX')
+        out = cv.VideoWriter(asctime().replace(' ', '-').replace(':', '')+'.avi', fourcc, 24.0, (640, 480))
+        for framebytes in allFrames:
+            frame = np.array(bytearray(framebytes), dtype=np.uint8)
+            frame = cv.cvtColor(np.reshape(frame, (480, 640)), cv.COLOR_GRAY2BGR)
+            cv.imshow('frames', frame)
+            ch = cv.waitKey(1)
+            out.write(frame)
+        mz7030fa.stop()
+        out.release()
+        cv.destroyAllWindows()
+        
+    else:
+        print('do nothing.')
+        pass
