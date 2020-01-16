@@ -149,8 +149,8 @@ class VideoCapBase(metaclass=ABCMeta):
     def read(self):
         pass
 
-    def get_backend(self):
-        return ['Undefined', 'LocalPipe', 'RemotePipe', 'Web'][self._backend_type]
+    def get_backend_name(self):
+        return ['Undefined', 'LocalPipe', 'RemotePipe', 'Web', 'Socket'][self._backend_type]
 
 
 class Mz7030faMt9v034Cap(VideoCapBase):
@@ -194,6 +194,9 @@ class Mz7030faMt9v034Cap(VideoCapBase):
             raise ValueError('wrong src argument format')
         self.is_opened = True
     
+    def isOpened(self):
+        return self.is_opened
+        
     def _socket_connect(self):
         try:
             self._sock.connect(self.src)
@@ -215,7 +218,10 @@ class Mz7030faMt9v034Cap(VideoCapBase):
             self._set_command_value(commandset['fps'+str(fps)])
     
     def start_stream(self):
-        self._set_command_value(commandset['endless'])
+        if self._backend_type==_BKND_LOCAL_PIPE:
+            self._set_command_value(commandset['endless'])
+        else:
+            print('Only direct/server/app mode can start stream.\nFor raw socket API, you must use `_set_command_value()` method to send camera commands mannually.')
     
     def start(self):
         self.start_stream()
@@ -242,6 +248,9 @@ class Mz7030faMt9v034Cap(VideoCapBase):
             return None
     
     def stop(self):
+        self._Close()
+    
+    def release(self):
         self._Close()
     
     def _Close(self):
@@ -308,6 +317,11 @@ class Mz7030faMt9v034Cap(VideoCapBase):
                 start = row*self._Wd
                 frame.append(struct.unpack(str(self._Wd)+'B', framebytes[start:start+self._Wd]))
             return True, np.array(frame, dtype='uint8')
+        
+        elif (self._backend_type==_BKND_SOCKET):
+            framebytes_l = _recvframes(self._sock, 1, self._Wd*self._Ht)
+            return framebytes_l[0]
+
         else:
             return False, None
     
