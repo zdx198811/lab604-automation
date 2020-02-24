@@ -44,10 +44,15 @@ class Led(QPushButton):
     red = np.array([0xff, 0x00, 0x00], dtype=np.uint8)
     red1 = np.array([0xf4, 0x37, 0x53], dtype=np.uint8)
     yellow = np.array([0xff, 0xff, 0x00], dtype=np.uint8)
+    gray = np.array([0xc0, 0xc0, 0xc0], dtype=np.uint8)
 
     capsule = 1
     circle = 2
     rectangle = 3
+
+    shapecode = {'capsule':capsule, 'cap':capsule, 1:capsule,
+                 'circle':circle, 'cir':circle, 2:circle,
+                 'rectangle':rectangle, 'rect':rectangle, 3:rectangle}
 
     def __init__(self, parent, on_color=green, off_color=black,
                  warning_color=orange, shape=rectangle, build='release'):
@@ -86,7 +91,7 @@ class Led(QPushButton):
         self._on_color = on_color
         self._off_color = off_color
         self._warning_color = warning_color
-        self._shape = shape
+        self._shape = Led.shapecode[shape]
         self._height = self.sizeHint().height()
 
         self.set_status(0)
