@@ -105,14 +105,17 @@ class finiteSM:
             return
         
         try:
-            self.current_state.exit(self.context)
+            self.current_state.exit(self)
             self.current_state = self.state_transaction_table[str(self.current_state)][event]()
             self.current_state.enter(event_obj, self)
             if isinstance(self.current_state, FsmFinalState):
                 self.clear_transaction_table()
             return
         except KeyError:
-            raise FsmException(f"Transaction not found. state={self.current_state}, event={event}")
+            print('#'*50+'\n#  WARNING: '+
+                  f"Transaction not found.\n#  State={self.current_state}, Event={event}"+
+                  '\n'+'#'*50)
+            #raise FsmException(f"Transaction not found. state={self.current_state}, event={event}")
         except Exception:
             raise 
 
@@ -121,13 +124,13 @@ class finiteSM:
         self.state_transaction_table = dict()
         self.current_state = None
 
-    def run(self):
+    def run(self, event=None):
         if len(self.state_transaction_table) == 0: raise FsmException("Empty table.")
         if self.initState is not None:
             self.current_state = self.initState()
         else:  # this seems strange but just randomly sets the first state found in transaction table
             self.current_state = list(self.state_transaction_table.values())[0].values()[0]()
-        self.current_state.enter(None, self)
+        self.current_state.enter(event, self)
 
     def isRunning(self):
         return self.current_state is not None
@@ -160,6 +163,9 @@ class finiteSM:
                 ret += ('    ' + event + ' -> ' + self.state_transaction_table[currentstateitem][event].__name__ + '\n')
         return ret
     
+    def __repr__(self):
+        return f'state machine: {self.__class__.__name__}'
+
 if __name__ == '__main__':
     
     # Define your state machine class to suport any customized featrues. This is optional.

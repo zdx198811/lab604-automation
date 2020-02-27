@@ -45,7 +45,7 @@ class Led(QPushButton):
     red1 = np.array([0xf4, 0x37, 0x53], dtype=np.uint8)
     yellow = np.array([0xff, 0xff, 0x00], dtype=np.uint8)
     gray = np.array([0xc0, 0xc0, 0xc0], dtype=np.uint8)
-
+    
     capsule = 1
     circle = 2
     rectangle = 3
@@ -55,12 +55,12 @@ class Led(QPushButton):
                  'rectangle':rectangle, 'rect':rectangle, 3:rectangle}
 
     def __init__(self, parent, on_color=green, off_color=black,
-                 warning_color=orange, shape=rectangle, build='release'):
+                 warning_color=orange, shape=rectangle, clickable=False):
         super().__init__()
-        if build == 'release':
-            self.setDisabled(True)
-        else:  # For example 'debug'
+        if clickable:
             self.setEnabled(True)
+        else:  
+            self.setDisabled(True)
 
         self._qss = 'QPushButton {{ \
                                    border: 3px solid lightgray; \
@@ -311,7 +311,7 @@ if __name__ == '__main__':
             for s in self._shape:
                 for c in self._color:
                     exec('self._{}_{} = Led(self, on_color=Led.{}, \
-                          shape=Led.{}, build="debug")'.format(s, c, c, s))
+                          shape=Led.{}, clickable=True)'.format(s, c, c, s))
                     exec('self._{}_{}.setFocusPolicy(Qt.NoFocus)'.format(s, c))
 
         def _arrange_leds(self):

@@ -2,14 +2,16 @@
 """
 Created on Tue Feb 18 15:55:50 2020
 Description:
-    A utility to run some function periodically. Using threading.Timer.
-    https://stackoverflow.com/questions/2398661/schedule-a-repeating-event-in-python-3
+    Repeating timer.
 @author: dongxucz
 """
 from threading import Thread, Timer, Lock, Event
 
 class Periodic(object):
     """
+    A utility to run some function periodically. Using threading.Timer.
+    https://stackoverflow.com/questions/2398661/schedule-a-repeating-event-in-python-3
+    
     Instanciate an object and call the start() method to run function periodically.
     __init__() Parameters:
         interval : int
@@ -56,6 +58,9 @@ class repeatTimer(Thread):
             t = repeatTimer(30.0, f, args=None, kwargs=None, autostart=True)
             t.start()
             t.cancel()     # stop the timer's action
+            t.stop()       # == t.cancel()
+            t.pause()      # still alive but do not excecute function
+            t.resume()     # resume from pause
     """
 
     def __init__(self, interval, function, args=None, kwargs=None, autostart=True):
@@ -66,21 +71,31 @@ class repeatTimer(Thread):
         self.args = args if args is not None else []
         self.kwargs = kwargs if kwargs is not None else {}
         self.finished = Event()
+        self._pause = False
         if self.autostart:
             self.start()
 
     def cancel(self):
         """Stop the timer."""
         self.finished.set()
-        
+    
     def stop(self):
         self.cancel()
+    
+    def pause(self):  # pause
+        self._pause = True
         
+    def resume(self):
+        self._pause = False
+    
     def run(self):
         while True:
             self.finished.wait(self.interval)
             if not self.finished.is_set():
-                self.function(*self.args, **self.kwargs)
+                if self._pause:
+                    pass
+                else:
+                    self.function(*self.args, **self.kwargs)
             else:
                 break
 
@@ -120,6 +135,11 @@ if __name__ == '__main__':
         randi = randint(1, 10)
         print(f'adding {randi}')
         testvalue.updatevalue(randi, op='add')
+        if i==50:
+            print("pause for 2 seconds...")
+            rt.pause()
+            sleep(2)
+            rt.resume()
         sleep(0.15)
     
     rt.stop()

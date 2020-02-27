@@ -48,16 +48,20 @@ class MplCanvas(FigureCanvas):
     def compute_initial_figure(self):
         pass
 
+    def update_figure(self):
+        pass
 
 class simpleSinePlot(MplCanvas):
     """Simple canvas with a sine plot."""
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.compute_initial_figure()
 
     def compute_initial_figure(self):
         self.phi = 0  # init phase
         self.t = np.arange(0.0, 3.0, 0.01)
-        s = np.sin(2*np.pi*t)
+        s = np.sin(2*np.pi*self.t)
         self.axes.plot(self.t, s)
-        self.axes.set_xlim(-1.2, 1.2)
         self.axes.set_ylim(-1.2, 1.2)
         self.draw()
 
@@ -66,8 +70,8 @@ class simpleSinePlot(MplCanvas):
         self.phi += 0.2
         s = np.sin(self.t + self.phi)
         self.axes.plot(self.t, s)
+        self.axes.set_ylim(-1.2, 1.2)
         self.draw()
-
 
 
 class SigWrapper(QObject):

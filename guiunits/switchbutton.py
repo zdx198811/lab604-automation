@@ -6,7 +6,7 @@ A QSwitchButton class implemented based on QSlider (and QLabel).
 
 """
 
-from PyQt5.QtCore import Qt, pyqtSignal, QObject
+from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QObject
 from PyQt5.QtWidgets import (QApplication, QLabel, QHBoxLayout, QVBoxLayout,
                              QSlider, QWidget, QDialog)
 
@@ -113,18 +113,24 @@ class QSwitchButton(QWidget):
 
         layout = QHBoxLayout()
         if off_opt:
-            self.off_option = QLabel(f"{off_opt} ")
-            self.off_option.setAlignment(Qt.AlignRight)
-            layout.addWidget(self.off_option)
+            self._off_option = off_opt
+            self.off_label = QLabel(f"{off_opt} ")
+            self.off_label.setAlignment(Qt.AlignRight)
+            self.off_label.mousePressEvent = self._turnOff
+            layout.addWidget(self.off_label)
+        else:
+            self._off_option = '-1'
         layout.addWidget(self.switch)
         if on_opt:
-            self.on_option = QLabel(f" {on_opt}")
-            self.on_option.setAlignment(Qt.AlignLeft)
-            layout.addWidget(self.on_option)
+            self._on_option = on_opt
+            self.on_label = QLabel(f" {on_opt}")
+            self.on_label.setAlignment(Qt.AlignLeft)
+            self.on_label.mousePressEvent = self._turnOn
+            layout.addWidget(self.on_label)
+        else:
+            self._on_option = '1'
 
         self.setLayout(layout)
-        self.off_option.mousePressEvent = self.turnOff
-        self.on_option.mousePressEvent = self.turnOn
         self._sgnlwrapper = SigWrapper()
         self.turned_off = self._sgnlwrapper.turned_off
         self.turned_on = self._sgnlwrapper.turned_on
@@ -136,17 +142,25 @@ class QSwitchButton(QWidget):
         else :
             self.turned_on.emit()
     
-    def turnOn(self, event):
+    def _turnOn(self, event):
         self.switch.setValue(1)
     
-    def turnOff(self, event):
+    def _turnOff(self, event):
+        self.switch.setValue(-1)
+
+    @pyqtSlot()
+    def turnOn(self):
+        self.switch.setValue(1)
+
+    @pyqtSlot()
+    def turnOff(self):
         self.switch.setValue(-1)
 
     def value(self):
         return self.switch.value()
 
     def state(self):
-        return self.on_option.text() if self.value()==1 else self.off_option.text()
+        return self._on_option if self.value()==1 else self._off_option
 
 if __name__ == '__main__':
     import sys
