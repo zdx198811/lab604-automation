@@ -48,15 +48,30 @@ class MplCanvas(FigureCanvas):
     def compute_initial_figure(self):
         pass
 
+    def update_figure(self):
+        pass
 
 class simpleSinePlot(MplCanvas):
     """Simple canvas with a sine plot."""
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.compute_initial_figure()
 
     def compute_initial_figure(self):
-        t = np.arange(0.0, 3.0, 0.01)
-        s = np.sin(2*np.pi*t)
-        self.axes.plot(t, s)
+        self.phi = 0  # init phase
+        self.t = np.arange(0.0, 3.0, 0.01)
+        s = np.sin(2*np.pi*self.t)
+        self.axes.plot(self.t, s)
+        self.axes.set_ylim(-1.2, 1.2)
+        self.draw()
 
+    def update_figure(self):
+        self.axes.cla()
+        self.phi += 0.2
+        s = np.sin(self.t + self.phi)
+        self.axes.plot(self.t, s)
+        self.axes.set_ylim(-1.2, 1.2)
+        self.draw()
 
 
 class SigWrapper(QObject):
@@ -223,18 +238,18 @@ class pon56gDemoBerPlot(MplCanvas):
             pass
         
         elif self.datadevice.algo_state == self.datadevice.NoNN:
-            if sig_p > 1:  # make sure there is optical signal received
+            if sig_p > 2:  # make sure there is optical signal received
                 ber_base = 0.25
             else:
-                ber_base = 1
+                ber_base = 0.5
             ber_jitter = np.random.randn()/25
             self.plotDraw(ber_base, ber_jitter)
             
         else: # algo_state == YesNN or TranSit:
-            if sig_p > 1: # make sure there is optical signal received
+            if sig_p > 2: # make sure there is optical signal received
                 ber_base = 0.00082
             else:
-                ber_base = 1
+                ber_base = 0.5
             ber_jitter = np.mean(np.random.randn(100)/1000)
             self.plotDraw(ber_base, ber_jitter)
             

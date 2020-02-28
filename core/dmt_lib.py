@@ -107,7 +107,7 @@ class DmtCommon:
     """
     def __init__(self, sample_rate = 1, symbol_rate = 1, frame_len = 2,
                  qam_level = 4):
-        np.fft.restore_all()
+        # np.fft.restore_all()  # this line was to deal with mkl_fft issue before version 1.0.2
         self.sample_rate = sample_rate
         self.symbol_rate = symbol_rate
         self.over_sample_ratio = sample_rate/symbol_rate

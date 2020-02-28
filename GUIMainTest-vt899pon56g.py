@@ -45,9 +45,10 @@ VT899Addr = "10.242.13.34", 9998
 M8195Addr = "10.242.13.77"
 
 cwd = getcwd()
-sample_folder = cwd+'\\vtbackendlib\\0726vt899pon56g\\'
+sample_folder = cwd+'/vtbackendlib/0726vt899pon56g/'
 
-csvpath = 'D:\\PythonScripts\\lab604-automation\\vtbackendlib\\0726vt899pon56g\\'
+#csvpath = 'D:/PythonScripts/lab604-automation/vtbackendlib/0726vt899pon56g/'
+csvpath = sample_folder
 frame_len = 196608
 ook_preamble = OOK_signal(load_file= csvpath+'Jul 6_1741preamble.csv')
 ook_prmlb = ook_preamble.nrz(dtype = 'int8')
@@ -237,7 +238,7 @@ class vtdev(vt_device.VT_Device):
     
     def calcEexpectedGbps(self, ber, maxGbps=60):
         """ calculate an 'achievable bit rate' based on a BER value"""
-        if ber>0.8:  # abnormal
+        if ber>0.4:  # abnormal
             expectedGbps = 0
         elif ber>0.009:  # NoNN
             expectedGbps = 12.5  # 14-ber*10
@@ -361,7 +362,7 @@ class Fan(QObject):
        
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.pixmap_item = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\fan.png'))
+        self.pixmap_item = QGraphicsPixmapItem(QPixmap(cwd+'/guiunits/imags/pon56gdemo/fan.png'))
         self.pixmap_item.setTransformOriginPoint(self.pixmap_item.boundingRect().center())
         #self.clickedSgnlWrapper = itemClickedSgnlWrapper()
         #self.clicked = self.clickedSgnlWrapper.sgnl
@@ -391,9 +392,14 @@ class fadingPic(QObject):
     def __init__(self, pixmap, parent=None):
         super().__init__(parent)
         self.pixmap_item = QGraphicsPixmapItem(pixmap)
-    
+        self.text_item = QGraphicsTextItem("Nerual Network based Channel Learning")
+        font = QFont("Nokia Pure Text Light", 18) # QFont.Bold
+        self.text_item.setFont(font)
+        self.text_item.setDefaultTextColor(QColor(18, 65, 145))
+        
     def _set_opacity(self, opc):
         self.pixmap_item.setOpacity(opc)
+        self.text_item.setOpacity(opc)
     
     def fadeIn(self):
         anim = QPropertyAnimation(self, b'opacity')
@@ -419,7 +425,7 @@ class AppWindow(QMainWindow):
         self.datadevice = datadevice
         self.awg = awg
         self.nokia_blue = QColor(18, 65, 145)
-        self.title = "High-speed PON demo"  # "超高速光接入网" 
+        self.title = "High-speed PON demo"  
         self.geo = {
             'top'   : 30,
             'left'  : 0,
@@ -464,10 +470,11 @@ class AppWindow(QMainWindow):
         palette = self.palette()
         palette.setColor(self.foregroundRole(), self.nokia_blue)
         mainTitle.setPalette(palette)
-        mainTitle.setGeometry(0,0,950, 69)
+        mainTitle.setGeometry(50,0,950, 69)
+        
         
         subTitle = QLabel(parent=wdgt)
-        subTitle.setText("—— Enabling 50Gbps over 10G-class devices")
+        subTitle.setText("—— Enabling 50Gbps PON")
         font = QFont("Nokia Pure Text Light", 20)
         subTitle.setFont(font)
         # subTitle.setFrameStyle(22)  # show border
@@ -475,7 +482,7 @@ class AppWindow(QMainWindow):
         palette = self.palette()
         palette.setColor(self.foregroundRole(), self.nokia_blue)
         subTitle.setPalette(palette)
-        subTitle.setGeometry(960,16,600, 40)
+        subTitle.setGeometry(1010,16,600, 40)
         
         self.mainTitle = mainTitle
         self.subTitle = subTitle
@@ -496,13 +503,13 @@ class AppWindow(QMainWindow):
         title.setGeometry(20, 10, 490, 69)
         
         bkgrndYear = QLabel(parent=wdgt)
-        bkgrndYear.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrndyear.png'))
+        bkgrndYear.setPixmap(QPixmap(cwd+'/guiunits/imags/pon56gdemo/bkgrndyear.png'))
         bkgrndYear.move(25,110)
         
         bkgrndSlider = QPushButton(parent=wdgt)
         bkgrndSlider.setFixedSize(40,60)
         bkgrndSlider.setStyleSheet("QPushButton { background : transparent }")
-        bkgrndSlider.setIcon(QIcon(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrndslider.png'))
+        bkgrndSlider.setIcon(QIcon(cwd+'/guiunits/imags/pon56gdemo/bkgrndslider.png'))
         bkgrndSlider.setIconSize(QSize(50,63))
         bkgrndSlider.setFlat(True)
         bkgrndSlider.move(38,640)
@@ -519,12 +526,12 @@ class AppWindow(QMainWindow):
         sliderAnim_2.setEasingCurve(QEasingCurve.OutQuad)
         
         bkgrnd2015 = QLabel(parent=wdgt)
-        bkgrnd2015.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrnd2015.png'))
+        bkgrnd2015.setPixmap(QPixmap(cwd+'/guiunits/imags/pon56gdemo/bkgrnd2015.png'))
         bkgrnd2015.move(280, 600)
         # anim2015 = QPropertyAnimation(bkgrnd2015, b"windowOpacity")
         
         bkgrnd2020 = QLabel(parent=wdgt)
-        bkgrnd2020.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrnd2020.png'))
+        bkgrnd2020.setPixmap(QPixmap(cwd+'/guiunits/imags/pon56gdemo/bkgrnd2020.png'))
         bkgrnd2020.move(270, 340)
         mask2020 = QGraphicsOpacityEffect(parent=bkgrnd2020)
         bkgrnd2020.setGraphicsEffect(mask2020)
@@ -536,7 +543,7 @@ class AppWindow(QMainWindow):
         bkgrnd2020FadeIn.setEasingCurve(QEasingCurve.InQuad)
         
         bkgrnd2025 = QLabel(parent=wdgt)
-        bkgrnd2025.setPixmap(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\bkgrnd2025.png'))
+        bkgrnd2025.setPixmap(QPixmap(cwd+'/guiunits/imags/pon56gdemo/bkgrnd2025.png'))
         bkgrnd2025.move(275, 110)
         mask2025 = QGraphicsOpacityEffect(parent=bkgrnd2025)
         bkgrnd2025.setGraphicsEffect(mask2025)
@@ -569,9 +576,10 @@ class AppWindow(QMainWindow):
         def clickEventHandler(event):
             self.detailFigure_2Clicked.emit()
         
-        detailFigure_1 = QGraphicsPixmapItem(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_1.png'))
-        detailFigure_2_Qobj = fadingPic(QPixmap(cwd+'\\guiunits\\imags\\pon56gdemo\\detailfigure_2_en.png'))
+        detailFigure_1 = QGraphicsPixmapItem(QPixmap(cwd+'/guiunits/imags/pon56gdemo/detailfigure_1.png'))
+        detailFigure_2_Qobj = fadingPic(QPixmap(cwd+'/guiunits/imags/pon56gdemo/detailfigure_2.png'))
         detailFigure_2 = detailFigure_2_Qobj.pixmap_item
+        detailFigure_2_title = detailFigure_2_Qobj.text_item
         detailFigure_1.mousePressEvent = clickEventHandler
         title = QGraphicsTextItem("Our Innovation/Contribution")
         font = QFont("Nokia Pure Text Light", 25, QFont.Bold)
@@ -597,14 +605,17 @@ class AppWindow(QMainWindow):
         scene.setSceneRect(0, 0, 1285, 420)
         scene.addItem(detailFigure_2)
         scene.addItem(detailFigure_1)
+        scene.addItem(detailFigure_2_title)
         scene.addItem(textItem1)
         scene.addItem(textItem2)
         scene.addItem(title)
         scene.addItem(fan.pixmap_item)
         
         detailFigure_1.setPos(QPointF(35, 88))
-        detailFigure_2.setPos(QPointF(570, 40))
+        detailFigure_2.setPos(QPointF(570, 96))
         detailFigure_2.setOpacity(0)  # hided at first
+        detailFigure_2_title.setPos(QPointF(750, 46))
+        detailFigure_2_title.setOpacity(0)
         title.setPos(QPointF(50,20))
         textItem1.setPos(QPointF(40, 168))
         textItem2.setPos(QPointF(361, 168))
@@ -621,6 +632,7 @@ class AppWindow(QMainWindow):
         self.detailGrpTextItem1 = textItem1
         self.detailGrpTextItem2 = textItem2
         self.detailFigTitle = title
+        self.detailFigure_2_title = detailFigure_2_title
         self.turbofan = fan
         self.NNfigure_fadeIn = detailFigure_2_Qobj.fadeIn()
         self.NNfigure_fadeOut = detailFigure_2_Qobj.fadeOut()
@@ -859,10 +871,15 @@ class AppWindow(QMainWindow):
         if (self._lang == 'en'):
             print("Switching language form EN to CN.")
             self._lang = 'cn'
-            self.mainTitle.setText('''<div style="font-family:微软雅黑;margin-left:250px;">基于  <i>人工智能</i>  的‘超高速光接入’ </div>''')
-            self.subTitle.setText('''<div style="font-family:微软雅黑;"> ——50G光接入 </div> ''')
+            # self.mainTitle.setText('''<div style="font-family:微软雅黑;margin-left:250px;">基于  <i>人工智能</i>  的‘超高速光接入’ </div>''')
+            self.mainTitle.setText('''<div style="font-family:微软雅黑;margin-left:250px;"> <i>超高智能、超低成本</i>的下一代无源光网络 </div>''')
+            self.mainTitle.setGeometry(50,0,1150, 69)
+            self.subTitle.setText('''<div style="font-family:微软雅黑;"> ——50Gbps光接入 </div> ''')
+            self.subTitle.setHidden(True)
+            # setGeometry(1010,16,600, 40)
             self.bkgrndTitle.setText("光接入的 ‘方案 vs 需求’")
             self.detailFigTitle.setPlainText("颠覆式创新")
+            self.detailFigure_2_title.setPlainText("基于 深度递归神经网络 的光信道‘学习’") 
             self.prototypeTitle.setText("硬件平台实时监控")
             self.detailGrpTextItem1.setHtml('''
                  <body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
@@ -878,11 +895,14 @@ class AppWindow(QMainWindow):
             print("Switching language form CN to EN.")
             self._lang = 'en'
             self.mainTitle.setText("Ultra-Fast Fiber Access with Intelligent PHY")
-            self.subTitle.setText('''<div style="font-family:微软雅黑;"> ——50G光接入 </div> ''')
-            self.subTitle.setText("—— Enabling 50Gbps over 10G-class devices")
+            self.mainTitle.setGeometry(50,0,950, 69)
+            self.subTitle.setText('''<div style="font-family:微软雅黑;"> —— Enabling 50Gbps PON </div> ''')
+            #self.subTitle.setText("—— Enabling 50Gbps PON")
+            self.subTitle.setHidden(False)
             self.bkgrndTitle.setText("Growing Demand for Access")
             self.prototypeTitle.setText("Prototype Monitor")
             self.detailFigTitle.setPlainText("Our Innovation/Contribution")
+            self.detailFigure_2_title.setPlainText("Nerual Network based Channel Learning") 
             self.detailGrpTextItem1.setHtml('''
                  <body style="font-family:Nokia Pure Text Light;color:#124191;font-size:23px;">
                  <div >10GHz</div>

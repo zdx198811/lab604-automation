@@ -1,16 +1,16 @@
 # lab604-automation
 
-An instrument configuration/automation platform, designed for Nokia Shanghai Bell D604 lab environment.
+An instrument configuration/automation platform, designed for my personal lab environment.
 
-There are various kinds of 'programmable' devices in our lab, e.g. Keysight oscilloscopes & AWGs, VadaTech chassis, Xilinx FPGA boards, etc. Each device/instrument has its own control interface, it is very time-consuming to manually turn the knobs and push the buttons or to craft separate scripts to make a testbed configuration for one experiment or demo case. A unified software framework that controls all the devices in a centralized and programmable manner will be very necessary.
+There are various kinds of 'programmable' devices in the lab, e.g. Keysight oscilloscopes & AWGs, VadaTech chassis, Xilinx FPGA boards, etc. Each device/instrument has its own control interface, it is very time-consuming to manually turn the knobs and push the buttons or to craft separate scripts to make a testbed configuration for one experiment or demo case. A unified software framework that controls all the devices in a centralized and programmable manner will be very necessary.
 
 There are similar requirements for test automation in many R&D labs, and some mature test automation platform solutions must exist already. But our lab focuses more on research & innovation and could be far less standardized than those R&D labs. As our work goes on, experiment (and sometimes demo) requirements change rapidly, so the devices we use and their functionalities/APIs also change constantly. Therefore, we do not need a sophisticated and stable software suit, neither do we care about performance and robustness. The only thing we need is a simple and flexible framework (or template) to glue different devices' control scripts, which can be quickly hacked and re-structured when needed to.
 
 ## To those who accidentally enter here:
-I don't think anyone else outside our lab will benefit from these codes directly. Even if you have exactly the same equipment as ours, there are many critical hardware functions may differ and make the scripts inapplicable. For example, the FPGA images and embedded Linux hardware drivers will be different case by case. But still, we make this repository public and open, not only for harvesting the convenience of GitHub utilities but also to inspire anyone trying to develop similar systems (by providing a BAD example, though).
+I don't think anyone else outside our lab will benefit from these codes directly. Even if you have exactly the same equipment as mine, there are many critical hardware functions may differ and make the scripts inapplicable. For example, the FPGA images and embedded Linux hardware drivers will be different case by case, while those codes are not suposed to be shared externally. But still, I make this repository public and open, not only for harvesting the convenience of GitHub utilities but also in hope of inspiring anyone trying to develop similar things (by providing a BAD example, though).
 
 
-Contact: Dongxu Zhang (dongxu.c.zhang@nokia-sbell.com)
+Contact: Dongxu Zhang (dongxu.zhang@foxmail.com)
 
 ## 1. overall sytem architecture
 
