@@ -7,10 +7,15 @@ Created on Wed Feb 20 10:51:03 2019
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib.widgets import CheckButtons
+import matplotlib.pyplot as plt
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal, QObject
 import numpy as np
+from collections import deque
 
+
+plt.style.use('ggplot')
 
 def extract_samples_int(bin_data):
     mview = memoryview(bin_data)
@@ -28,13 +33,21 @@ def channel_filter(raw_iq, start, stop):
     return np.reshape(clean_iq, (N*L,), order='F')
 
 class MplCanvas(FigureCanvas):
-    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
+    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.).
+       Subclass this and reimplement compute_initial_figure() and update_figure()
+       methods, like the `simpleSinePlot` example below.
+
+       Typically, the update_figure() method will be connected to a GUI signal
+       (e.g. a repeative timer) and called automatically.
+
+       self.datadevice could be an device where data is acquired.
+    """
 
     def __init__(self, parent=None, width=4, height=4, dpi=100,
                  datadevice=None, tight_layout=False):
         fig = Figure(figsize=(width, height), dpi=dpi, tight_layout=tight_layout)
         self.axes = fig.add_subplot(111)
-        self.datadevice = datadevice
+        self.datadevice = datadevice  #
         # self.compute_initial_figure()
 
         FigureCanvas.__init__(self, fig)
@@ -44,6 +57,7 @@ class MplCanvas(FigureCanvas):
                                    QtWidgets.QSizePolicy.Expanding,
                                    QtWidgets.QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
+        self.fig = fig
 
     def compute_initial_figure(self):
         pass
@@ -56,6 +70,7 @@ class simpleSinePlot(MplCanvas):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.compute_initial_figure()
+        # self.datadevice.query('IDN?')
 
     def compute_initial_figure(self):
         self.phi = 0  # init phase
@@ -71,6 +86,55 @@ class simpleSinePlot(MplCanvas):
         s = np.sin(self.t + self.phi)
         self.axes.plot(self.t, s)
         self.axes.set_ylim(-1.2, 1.2)
+        self.draw()
+
+class fogContainerTrfcStat(MplCanvas):
+    """ plot container traffic statistics for FOG demo"""
+    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+    def __init__(self, trfc_stats, n_points = 15, parent=None):
+        '''
+        trfc_stats: a list of multiprocessing.Value, in which each
+        element coresponds to a container's current traffic bandwidth.
+        '''
+        super().__init__(parent=parent)
+        self.trfc_stats = trfc_stats
+        self.n_points = n_points
+        self.n_lines = len(trfc_stats)
+        self.fig.subplots_adjust(left=0.35)
+        self.ax_checkbuttom = self.fig.add_axes([0.04, 0.2, 0.17, 0.5])
+        self.compute_initial_figure()
+
+    def compute_initial_figure(self):
+        self.t = np.arange(0, self.n_points)
+        self.alldata = []
+        self.lines = []
+        for i in range(self.n_lines):
+            data = deque([0]*self.n_points, maxlen=self.n_points)
+            ls = self.axes.plot(self.t, data, lw=1, 
+                                color=fogContainerTrfcStat.colors[i],
+                                label=f'Container {i}')
+            self.alldata.append(data)
+            self.lines.append(ls[0])
+        self.labels = [str(line.get_label()) for line in self.lines]
+        self.visibility = [line.get_visible() for line in self.lines]
+        self.checkbuttom = CheckButtons(self.ax_checkbuttom, self.labels, self.visibility)
+        self.checkbuttom.on_clicked(self.checkbutton_func)
+        self.axes.set_ylim(0, 810000)
+        self.axes.legend(loc='upper right')  #'lower right'
+        self.axes.get_xaxis().set_ticks([])
+        self.draw()
+
+    def checkbutton_func(self, label):
+        idx = self.labels.index(label)
+        self.lines[idx].set_visible(not self.lines[idx].get_visible())
+        self.draw()
+
+    def update_figure(self):
+        #self.axes.cla()
+        for i in range(self.n_lines):
+            self.alldata[i].append(self.trfc_stats[i].value)
+            self.lines[i].set_ydata(self.alldata[i])
+            # print(self.alldata[i])
         self.draw()
 
 

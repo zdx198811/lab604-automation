@@ -23,7 +23,7 @@
 
 
 # Python imports
-import numpy as np
+#import numpy as np
 # import pyautogui
 
 # PyQt5 imports
@@ -34,17 +34,18 @@ from PyQt5.QtWidgets import QPushButton
 
 
 class Led(QPushButton):
-    black = np.array([0x00, 0x00, 0x00], dtype=np.uint8)
-    white = np.array([0xff, 0xff, 0xff], dtype=np.uint8)
-    blue = np.array([0x73, 0xce, 0xf4], dtype=np.uint8)
-    green1 = np.array([0xad, 0xff, 0x2f], dtype=np.uint8)
-    green = np.array([0x01, 0xff, 0x53], dtype=np.uint8)
-    orange = np.array([0xff, 0xa5, 0x00], dtype=np.uint8)
-    purple = np.array([0xaf, 0x00, 0xff], dtype=np.uint8)
-    red = np.array([0xff, 0x00, 0x00], dtype=np.uint8)
-    red1 = np.array([0xf4, 0x37, 0x53], dtype=np.uint8)
-    yellow = np.array([0xff, 0xff, 0x00], dtype=np.uint8)
-    gray = np.array([0xc0, 0xc0, 0xc0], dtype=np.uint8)
+
+    black = [0x00, 0x00, 0x00]
+    white = [0xff, 0xff, 0xff]
+    blue = [0x73, 0xce, 0xf4]
+    green1 = [0xad, 0xff, 0x2f]
+    green = [0x01, 0xff, 0x53]
+    orange = [0xff, 0xa5, 0x00]
+    purple = [0xaf, 0x00, 0xff]
+    red = [0xff, 0x00, 0x00]
+    red1 = [0xf4, 0x37, 0x53]
+    yellow = [0xff, 0xff, 0x00]
+    gray = [0xc0, 0xc0, 0xc0]
     
     capsule = 1
     circle = 2
@@ -99,7 +100,7 @@ class Led(QPushButton):
     # =================================================== Reimplemented Methods
     def mousePressEvent(self, event):
         QPushButton.mousePressEvent(self, event)
-        if self._status is 0:
+        if self._status == 0:
             self.set_status(1)
         else:
             self.set_status(0)
@@ -219,7 +220,7 @@ class Led(QPushButton):
         self._warning_qss = self._qss.format(self._end_radius, grad, color, color)
 
     def _get_gradient(self, color):
-        grad = ((self.white - color) / 2).astype(np.uint8) + color
+        grad = [ int((self.white[i]-color[i])/2 + color[i]) for i in range(3)]
         grad = '{:02X}{:02X}{:02X}'.format(grad[0], grad[1], grad[2])
         color = '{:02X}{:02X}{:02X}'.format(color[0], color[1], color[2])
         return color, grad
@@ -296,9 +297,9 @@ if __name__ == '__main__':
     class Demo(QWidget):
         def __init__(self, parent=None):
             QWidget.__init__(self, parent)
-            self._shape = np.array(['capsule', 'circle', 'rectangle'])
-            self._color = np.array(['blue', 'green', 'orange', 'purple', 'red',
-                                    'yellow'])
+
+            self._shape = ['capsule', 'circle', 'rectangle']
+            self._color = ['blue', 'green', 'orange', 'purple', 'red', 'yellow']
             self._layout = QGridLayout(self)
             self._create_leds()
             self._arrange_leds()

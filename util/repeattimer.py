@@ -88,6 +88,12 @@ class repeatTimer(Thread):
     def resume(self):
         self._pause = False
     
+    def is_runing(self):
+        return (not self._pause)
+    
+    def is_paused(self):
+        return self._pause
+    
     def run(self):
         while True:
             self.finished.wait(self.interval)
