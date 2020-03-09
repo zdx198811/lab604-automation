@@ -23,6 +23,7 @@
 
 
 # Python imports
+#import numpy as np
 # import pyautogui
 
 # PyQt5 imports
@@ -33,7 +34,7 @@ from PyQt5.QtWidgets import QPushButton
 
 
 class Led(QPushButton):
-    
+
     black = [0x00, 0x00, 0x00]
     white = [0xff, 0xff, 0xff]
     blue = [0x73, 0xce, 0xf4]
@@ -296,6 +297,7 @@ if __name__ == '__main__':
     class Demo(QWidget):
         def __init__(self, parent=None):
             QWidget.__init__(self, parent)
+
             self._shape = ['capsule', 'circle', 'rectangle']
             self._color = ['blue', 'green', 'orange', 'purple', 'red', 'yellow']
             self._layout = QGridLayout(self)
